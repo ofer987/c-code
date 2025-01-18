@@ -66,8 +66,10 @@ export CCC := ${CC}
 endif
 
 # C sources that produce an executable
-ROURCES =					\
-	main.c
+ROURCES = \
+	main.c \
+	main_with_registers.c \
+	main_without_registers.c
 
 # Comment this out if your platform does not support the C11 thread model
 # TOURCES = B9.c B9-detach.c

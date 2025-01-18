@@ -1,11 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <limits.h>
 
 #ifndef nullptr
 # define nullptr NULL
 #endif
 
 size_t fib(size_t n, int* buffer) {
+  int i = INT_MAX;
+  int j = INT_MIN;
+
+  printf("int max is %d\n", i);
+  printf("int min is %d\n", j);
+
   if (buffer[n] != 0) {
     printf("using buffer %zu\n", n);
 
@@ -30,6 +38,7 @@ size_t fib(size_t n, int* buffer) {
 size_t max(size_t* numbers, size_t length);
 
 int main(int argc, char *argv[]) {
+  clock_t start = clock();
   div_t result = div(5, 2);
 
   printf("Result is %d / %d\n", result.quot, result.rem);
@@ -55,6 +64,10 @@ fibonacci_sequences_length);
   }
 
   free(fibonacci_sequences);
+
+  clock_t end = clock();
+  printf("It took %ld microseconds", end - start);
+
   return EXIT_SUCCESS;
 }
 
