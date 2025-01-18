@@ -148,7 +148,7 @@ DEPENDS = ${SOURCES:.c=.d} ${LSOURCES:.c=.d}
 	${CC} -o $@ ${LDFLAGS} $< ${LDLIBS}
 
 .c :
-	${CC} ${STD} ${WAR} -o $@ $<
+	${CC} ${STD} ${WAR} -o ./bin/$@ $<
 
 # This is the first explicit target, so per default make will try to
 # produce it. It is only here for the dependencies to all our
@@ -195,6 +195,7 @@ ${BOBJECTS:.o=} : libmodernC.a
 # Cleanup the directory from all files that we produce
 clean :
 	rm -f libmodernC.a ${DEPENDS} ${OBJECTS} ${LOBJECTS} ${OOBJECTS} ${BOBJECTS} ${BINARIES} ${BOBJECTS:.o=}
+	rm -f ./bin/*
 
 # Include all the produced dependency files. In POSIX, it is
 # unspecified if "include" works with more than one file, but usually
