@@ -1,8 +1,11 @@
+#include <time.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <curses.h>
-#include <signal.h>
+/* #include <signal.h> */
 
-const size_t SCREEN_SIZE = 256;
+const size_t SCREEN_SIZE = 289;
+const size_t SIDE_SIZE = 17;
 
 enum screen_state {
   AVAILABLE = 0,
@@ -12,20 +15,29 @@ enum screen_state {
 };
 enum snake_movement { LEFT = 0, UP, RIGHT, DOWN };
 
+struct coordinates {
+  size_t y;
+  size_t x;
+};
+
+struct coordinates coordinates;
+
 struct snake_struct {
-  size_t head;
-  size_t size;
+  struct coordinates head;
+  struct coordinates tail[SCREEN_SIZE];
+  size_t tail_size;
+
   enum snake_movement current_movement;
   /* size_t *locations; */
 };
 
-struct screen_struct {
+struct snake_screen {
   size_t size;
   size_t screen_state[SCREEN_SIZE];
 };
 
-struct screen_struct screen_struct;
-struct snake_struct snake_struct;
+/* struct screen_struct screen_struct; */
+/* struct snake_struct snake_struct; */
 
 static void finish(int sig);
 
@@ -34,24 +46,57 @@ void update_screen_state(
     struct snake_struct *snake);
 
 void render_screen(enum screen_state *screen_states);
+void generate_food(enum screen_state *screen_states);
+void move_snake(struct snake_struct *snake);
+bool is_game_valid(
+    enum screen_state *screen_states,
+    struct snake_struct *snake);
+struct coordinates index_to_coorindates(size_t index);
+size_t coordinates_to_index(size_t y, size_t x);
 
 int main(int argc, char *argv[]) {
   int num = 0;
+  srandom(time(NULL));
 
   enum screen_state screen_states[SCREEN_SIZE];
 
   struct snake_struct snake = {
-    .head = SCREEN_SIZE / 2,
-    .size = 1
-      /* .locations = screen[SCREEN_SIZE / 2] */
+    .head = {
+      .y = SIDE_SIZE / 2,
+      .x = SIDE_SIZE / 2
+    },
+    .tail_size = 0
   };
+
+  for (size_t i = 0; i < SCREEN_SIZE; i += 1) {
+    // Reset the tail to 0
+    snake.tail_size = 0;
+    struct coordinates foobar = {
+      .y = -1,
+      .x = -1
+    };
+    snake.tail[i] = foobar;
+    /* snake.tail[i] = { */
+    /*   .y = 0, */
+    /*   .x = 0 */
+    /* }; */
+
+    // Reset the screen
+    if (coordinates_to_index(snake.head.y, snake.head.x) == i) {
+      screen_states[i] = USED_BY_SNAKE_HEAD;
+
+      continue;
+    }
+
+    screen_states[i] = AVAILABLE;
+  }
 
   /* initialize your non-curses data structures here */
   (void) signal(SIGINT, finish);
   (void) signal(SIGTERM, finish);
 
   /* initialize the curses library */
-  (void) initscr();
+  initscr();
 
   /* enable keyboard mapping */
   keypad(stdscr, TRUE);
@@ -62,8 +107,9 @@ int main(int argc, char *argv[]) {
   /* take input chars one at a time, no wait for \n */
   (void) cbreak();
 
-  /* echo input - in color */
-  (void) echo();
+  /* noecho input - in color */
+  (void) noecho();
+  /* (void) echo(); */
 
   if (has_colors()) {
     start_color();
@@ -76,9 +122,14 @@ int main(int argc, char *argv[]) {
      */
     use_default_colors();
     // Use default color for available space (i.e., `0`)
+    init_pair(0, COLOR_BLACK, COLOR_BLACK);
     init_pair(1, COLOR_WHITE, COLOR_WHITE);
     init_pair(2, COLOR_RED,   COLOR_RED);
     init_pair(3, COLOR_BLACK, COLOR_BLACK);
+    init_pair(4, COLOR_BLACK, COLOR_BLACK);
+    init_pair(5, COLOR_BLUE, COLOR_BLACK);
+    init_pair(6, COLOR_GREEN, COLOR_BLACK);
+    init_pair(7, COLOR_BLACK, COLOR_BLACK);
   }
 
   /* size_t screen_size[SCREEN_SIZE]; */
@@ -113,6 +164,12 @@ int main(int argc, char *argv[]) {
 
     update_screen_state(screen_states, &snake);
     render_screen(screen_states);
+    refresh();
+    move_snake(&snake);
+    if (!is_game_valid(screen_states, &snake)) {
+      finish(0);
+    }
+    generate_food(screen_states);
 
     if (ch == 'q') {
       finish(0);
@@ -138,12 +195,24 @@ void update_screen_state(
   // TODO(ofer987): fix later
   // Should be based on the **relative location** and
   // the snake's **current_movement**
-  if (screen_states[snake->head] != USED_BY_FOOD) {
+  size_t snake_head_location = coordinates_to_index(
+      snake->head.y,
+      snake->head.x);
+  if (screen_states[snake_head_location] == USED_BY_FOOD) {
+    generate_food(screen_states);
+
     return;
   }
 
-  snake->size += 1;
-  screen_states[snake->head] = USED_BY_SNAKE;
+  snake->tail_size += 1;
+  for (size_t i = 0; i < snake->tail_size; i += 1) {
+    size_t snake_tail_index = coordinates_to_index(
+        snake->tail[i].y,
+        snake->tail[i].x);
+
+    screen_states[snake_tail_index] = USED_BY_SNAKE;
+  }
+  screen_states[snake_head_location] = USED_BY_SNAKE_HEAD;
 
   return;
 }
@@ -151,7 +220,28 @@ void update_screen_state(
 // TODO(ofer987): should I use an array instead?
 void render_screen(enum screen_state *screen_states) {
   for (size_t i = 0; i < SCREEN_SIZE; i += 1) {
-    attrset(COLOR_PAIR(screen_states[i]));
+    size_t state = screen_states[i];
+    attrset(COLOR_PAIR(state));
+    /* attr_set(a, c, o); */
+
+    struct coordinates coords = index_to_coorindates(i);
+    /* attron(COLOR_PAIR(screen_states[i % 4])); */
+    mvaddch(coords.y, coords.x, state + 48);
+    /* sleep(1); */
+    /* mvchgat(y, x, 0, COLOR_PAIR(screen_states[i % 4]), 0, NULL); */
+    /* move(y, x); */
+    /* bkgd(i % 4); */
+    /* addch('0'); */
+    /* attroff(COLOR_PAIR(screen_states[i % 4])); */
+
+    /* if (screen_states[i % 4] == AVAILABLE) { */
+    /*   addch('1'); */
+    /* } */
+    /*  */
+    /* if (screen_states[i % 4] == USED_BY_FOOD) { */
+    /*   addch('2'); */
+    /* } */
+    /* addch(i + 65); */
     /* attr_set(COLOR_PAIR((int) (screen_states[i]))); */
 
     /* attr_g, cp, o); */
@@ -163,4 +253,109 @@ void render_screen(enum screen_state *screen_states) {
     /*   case USED_BY_SNAKE: */
     /*     attrset(COLOR_PAIR(USED)); */
   }
+}
+
+void generate_food(enum screen_state *screen_states) {
+  size_t available_tiles = 0;
+
+  for (size_t i = 0; i < SCREEN_SIZE; i += 1) {
+    if (screen_states[i] == AVAILABLE) {
+      available_tiles += 1;
+    }
   }
+
+  size_t random_number = random() / (RAND_MAX / available_tiles);
+
+  available_tiles = 0;
+  for (size_t i = 0; i < SCREEN_SIZE; i += 1) {
+    if (random_number == available_tiles) {
+      screen_states[i] = USED_BY_FOOD;
+
+      break;
+    }
+
+    if (screen_states[i] == AVAILABLE) {
+      available_tiles += 1;
+    }
+  }
+}
+
+void move_snake(struct snake_struct *snake) {
+  struct coordinates new_head;
+
+  if (snake->current_movement == LEFT) {
+    new_head.y = snake->head.y;
+    new_head.x = snake->head.x - 1;
+  } else if (snake->current_movement == UP) {
+    new_head.y = snake->head.y - 1;
+    new_head.x = snake->head.x;
+  } else if (snake->current_movement == RIGHT) {
+    new_head.y = snake->head.y;
+    new_head.x = snake->head.x + 1;
+  } else {
+    new_head.y = snake->head.y + 1;
+    new_head.x = snake->head.x;
+  }
+
+  /* struct coordinates *previous = &(snake->head); */
+  struct coordinates *previous = &(snake->head);
+  snake->head = new_head;
+  /* snake->tail[0] = snake->head; */
+  /* snake->tail_size += 1; */
+  for (size_t i = 0; i < snake->tail_size; i += 1) {
+    struct coordinates *next_previous = previous;
+    snake->tail[i] = *previous;
+
+    previous = next_previous;
+  }
+
+  return;
+}
+
+bool is_game_valid(
+    enum screen_state *screen_states,
+    struct snake_struct *snake) {
+  if (snake->head.y < 0 || snake->head.y >= SIDE_SIZE) {
+    return false;
+  }
+
+  if (snake->head.x < 0 || snake->head.x >= SIDE_SIZE) {
+    return false;
+  }
+
+  size_t snake_head_location = coordinates_to_index(
+      snake->head.y,
+      snake->head.x);
+  enum screen_state snake_location = screen_states[snake_head_location];
+  if (snake_location == USED_BY_SNAKE_HEAD || snake_location == USED_BY_SNAKE) {
+    return false;
+  }
+
+  return true;
+}
+
+// TODO(ofer987): Finish later
+/* char* itoa(size_t value) { */
+/*   if (value < 0) { */
+/*     return NULL; */
+/*   } */
+/*  */
+/*   for (size_t i = value; i >= 0; i /= 10) { */
+/*     size_t chiffre = i % 10; */
+/*  */
+/*     char ch = chiffre + 48; */
+/*   } */
+/* } */
+
+struct coordinates index_to_coorindates(size_t index) {
+  struct coordinates foobar = {
+    .y = index / SIDE_SIZE,
+    .x = index % SIDE_SIZE
+  };
+
+  return foobar;
+}
+
+size_t coordinates_to_index(size_t y, size_t x) {
+  return SIDE_SIZE * y + x;
+}
