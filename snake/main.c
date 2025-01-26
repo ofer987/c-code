@@ -8,7 +8,7 @@ const size_t SCREEN_SIZE = 289;
 const size_t SIDE_SIZE = 17;
 
 enum screen_state {
-  AVAILABLE = 0,
+  AVAILABLE = 1,
   USED_BY_SNAKE,
   USED_BY_SNAKE_HEAD,
   USED_BY_FOOD
@@ -47,7 +47,9 @@ void update_screen_state(
 
 void render_screen(enum screen_state *screen_states);
 void generate_food(enum screen_state *screen_states);
-void move_snake(struct snake_struct *snake);
+void move_snake(
+    enum screen_state *screen_states,
+    struct snake_struct *snake);
 bool is_game_valid(
     enum screen_state *screen_states,
     struct snake_struct *snake);
@@ -122,14 +124,14 @@ int main(int argc, char *argv[]) {
      */
     use_default_colors();
     // Use default color for available space (i.e., `0`)
-    init_pair(0, COLOR_BLACK, COLOR_BLACK);
-    init_pair(1, COLOR_WHITE, COLOR_WHITE);
-    init_pair(2, COLOR_RED,   COLOR_RED);
-    init_pair(3, COLOR_BLACK, COLOR_BLACK);
-    init_pair(4, COLOR_BLACK, COLOR_BLACK);
-    init_pair(5, COLOR_BLUE, COLOR_BLACK);
-    init_pair(6, COLOR_GREEN, COLOR_BLACK);
-    init_pair(7, COLOR_BLACK, COLOR_BLACK);
+    init_pair(1, COLOR_BLACK, COLOR_BLACK);
+    init_pair(2, COLOR_WHITE, COLOR_WHITE);
+    init_pair(3, COLOR_RED,   COLOR_RED);
+    init_pair(4, COLOR_BLUE,  COLOR_BLUE);
+    /* init_pair(4, COLOR_BLACK, COLOR_BLACK); */
+    /* init_pair(5, COLOR_BLUE, COLOR_BLACK); */
+    /* init_pair(6, COLOR_GREEN, COLOR_BLACK); */
+    /* init_pair(7, COLOR_BLACK, COLOR_BLACK); */
   }
 
   /* size_t screen_size[SCREEN_SIZE]; */
@@ -154,6 +156,7 @@ int main(int argc, char *argv[]) {
         break;
       case KEY_DOWN:
       case 'j':
+      default:
         snake.current_movement = DOWN;
 
         break;
@@ -165,7 +168,7 @@ int main(int argc, char *argv[]) {
     update_screen_state(screen_states, &snake);
     render_screen(screen_states);
     refresh();
-    move_snake(&snake);
+    move_snake(screen_states, &snake);
     if (!is_game_valid(screen_states, &snake)) {
       finish(0);
     }
@@ -199,20 +202,21 @@ void update_screen_state(
       snake->head.y,
       snake->head.x);
   if (screen_states[snake_head_location] == USED_BY_FOOD) {
+    snake->tail_size += 1;
     generate_food(screen_states);
 
     return;
   }
 
-  snake->tail_size += 1;
-  for (size_t i = 0; i < snake->tail_size; i += 1) {
-    size_t snake_tail_index = coordinates_to_index(
-        snake->tail[i].y,
-        snake->tail[i].x);
-
-    screen_states[snake_tail_index] = USED_BY_SNAKE;
-  }
-  screen_states[snake_head_location] = USED_BY_SNAKE_HEAD;
+  /* snake->tail_size += 1; */
+  /* for (size_t i = 0; i < snake->tail_size; i += 1) { */
+  /*   size_t snake_tail_index = coordinates_to_index( */
+  /*       snake->tail[i].y, */
+  /*       snake->tail[i].x); */
+  /*  */
+  /*   screen_states[snake_tail_index] = USED_BY_SNAKE; */
+  /* } */
+  /* screen_states[snake_head_location] = USED_BY_SNAKE_HEAD; */
 
   return;
 }
@@ -280,7 +284,9 @@ void generate_food(enum screen_state *screen_states) {
   }
 }
 
-void move_snake(struct snake_struct *snake) {
+void move_snake(
+    enum screen_state *screen_states,
+    struct snake_struct *snake) {
   struct coordinates new_head;
 
   if (snake->current_movement == LEFT) {
@@ -298,16 +304,25 @@ void move_snake(struct snake_struct *snake) {
   }
 
   /* struct coordinates *previous = &(snake->head); */
-  struct coordinates *previous = &(snake->head);
+  /* struct coordinates *previous = &(snake->head); */
+  /* struct coordinates *previous; */
+  size_t index = coordinates_to_index(snake->head.y, snake->head.x);
+  screen_states[index] = AVAILABLE;
+
   snake->head = new_head;
+  index = coordinates_to_index(snake->head.y, snake->head.x);
+  screen_states[index] = USED_BY_SNAKE_HEAD;
   /* snake->tail[0] = snake->head; */
   /* snake->tail_size += 1; */
-  for (size_t i = 0; i < snake->tail_size; i += 1) {
-    struct coordinates *next_previous = previous;
-    snake->tail[i] = *previous;
-
-    previous = next_previous;
-  }
+  /* for (size_t i = 0; i < snake->tail_size; i += 1) { */
+  /*   struct coordinates *next_previous = &snake->tail[i]; */
+  /*   next_previous = previous; */
+  /*  */
+  /*   size_t index = coordinates_to_index(next_previous->y, next_previous->x); */
+  /*   screen_states[index] = USED_BY_SNAKE; */
+  /*  */
+  /*   previous = next_previous; */
+  /* } */
 
   return;
 }
@@ -327,7 +342,7 @@ bool is_game_valid(
       snake->head.y,
       snake->head.x);
   enum screen_state snake_location = screen_states[snake_head_location];
-  if (snake_location == USED_BY_SNAKE_HEAD || snake_location == USED_BY_SNAKE) {
+  if (snake_location == USED_BY_SNAKE) {
     return false;
   }
 
