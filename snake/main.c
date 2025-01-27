@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <curses.h>
+#include <stdio.h>
+#include <math.h>
 /* #include <signal.h> */
 
 const size_t SCREEN_SIZE = 289;
@@ -59,9 +61,10 @@ void render_screen(enum screen_state *screen_states);
 bool generate_food(
     enum screen_state *screen_states,
     struct coordinates *food_location);
-void move_snake(
+bool move_snake(
     enum screen_state *screen_states,
-    struct snake_struct *snake);
+    struct snake_struct *snake,
+    struct coordinates *food_location);
 bool is_game_valid(
     enum screen_state *screen_states,
     struct snake_struct *snake);
@@ -71,6 +74,8 @@ bool eat_food(struct snake_struct *snake, struct coordinates *food_location);
 struct coordinates* add_head(
     struct snake_struct *snake,
     struct coordinates *head);
+void display_snake_coordinates(struct snake_struct *snake);
+char* itoa(size_t value);
 
 int main(int argc, char *argv[]) {
   /* int num = 0; */
@@ -192,24 +197,29 @@ int main(int argc, char *argv[]) {
     /* attrset(COLOR_PAIR(num % 8)); */
     /* num += 1; */
 
+    if (move_snake(screen_states, &snake, &food_location)) {
+      generate_food(screen_states, &food_location);
+    }
+    display_snake_coordinates(&snake);
+    refresh();
     init_screen(screen_states, &snake, &food_location);
-    update_screen_state(screen_states, &snake);
+    /* update_screen_state(screen_states, &snake); */
     render_screen(screen_states);
     attrset(COLOR_PAIR(5));
     mvaddch(25, 25, snake.list_size + 48);
-    refresh();
-    move_snake(screen_states, &snake);
 
-    bool has_eaten = false;
-    if (eat_food(&snake, &food_location)) {
-      has_eaten = generate_food(screen_states, &food_location);
-    }
+    /* bool has_eaten = false; */
+    /* if (eat_food(&snake, &food_location)) { */
+    /*   has_eaten = generate_food(screen_states, &food_location); */
+    /* } else { */
+    /*   move_snake(screen_states, &snake); */
+    /* } */
 
-    if (has_eaten) {
-      mvaddstr(33, 0, "eaten");
-    } else {
-      mvaddstr(34, 0, "has not eaten");
-    }
+    /* if (has_eaten) { */
+    /*   mvaddstr(33, 0, "eaten"); */
+    /* } else { */
+    /*   mvaddstr(34, 0, "has not eaten"); */
+    /* } */
 
     if (!is_game_valid(screen_states, &snake)) {
       finish(0);
@@ -386,9 +396,10 @@ bool generate_food(
   return true;
 }
 
-void move_snake(
+bool move_snake(
     enum screen_state *screen_states,
-    struct snake_struct *snake) {
+    struct snake_struct *snake,
+    struct coordinates *food_location) {
   struct coordinates new_head;
 
   if (snake->current_movement == LEFT) {
@@ -410,37 +421,61 @@ void move_snake(
   /* struct coordinates *previous = &(snake->head); */
   /* struct coordinates *previous = &(snake->head); */
   /* struct coordinates *previous; */
-  size_t index = coordinates_to_index(snake->head->y, snake->head->x);
-  screen_states[index] = AVAILABLE;
+  /* size_t index = coordinates_to_index(snake->head->y, snake->head->x); */
+  /* screen_states[index] = AVAILABLE; */
 
   /* snake->head = new_head; */
   /* index = coordinates_to_index(snake->head.y, snake->head.x); */
   /* screen_states[index] = USED_BY_SNAKE_HEAD; */
 
-  struct coordinates *previous = &new_head;
-  struct coordinates *current = snake->head;
+  if (new_head.y == food_location->y &&
+      new_head.x == food_location->x) {
+    struct coordinates *added_head = malloc(sizeof(struct coordinates));
+    added_head->y = food_location->y;
+    added_head->x = food_location->x;
+
+    add_head(snake, added_head);
+    /* snake->head =  */
+
+    return true;
+  }
   /* snake->head.y = new_head.y; */
   /* snake->head.x = new_head.x; */
   /* snake->head.next = current; */
-  mvaddch(25, 25, snake->list_size + 48);
+  /* mvaddch(25, 25, snake->list_size + 48); */
 
   /* snake->list[0] = snake->head; */
   /* snake->tail_size += 1; */
-  do {
-    current->y = previous->y;
-    current->x = previous->x;
+  /* struct coordinates *added_head = malloc(sizeof(struct coordinates)); */
+  /* added_head->y = new_head.y; */
+  /* added_head->x = new_head.x; */
 
-    previous = current;
+  /* snake->head = added_head; */
+  size_t previous_y = new_head.y;
+  size_t previous_x = new_head.x;
+  struct coordinates *current = snake->head;
+  do {
+    size_t temp_y = current->y;
+    size_t temp_x = current->x;
+
+    current->y = previous_y;
+    current->x = previous_x;
+
+    previous_y = temp_y;
+    previous_x = temp_x;
+
+    /* size_t index = coordinates_to_index(snake->head->y, snake->head->x); */
+    /* screen_states[index] = AVAILABLE; */
     current = current->next;
   } while (current != NULL);
 
-  return;
+  return false;
 }
 
 bool is_game_valid(
     enum screen_state *screen_states,
     struct snake_struct *snake) {
-  return true;
+  /* return true; */
   mvaddstr(29, 0, "more food 4");
 
   if (snake->head->y < 0 || snake->head->y >= SIDE_SIZE) {
@@ -553,4 +588,64 @@ struct coordinates* add_head(
   mvaddstr(26, 0, "new head");
 
   return head;
+}
+
+void display_snake_coordinates(struct snake_struct *snake) {
+  struct coordinates *current = snake->head;
+
+  size_t height = 0;
+  /* size_t width = 0; */
+  do {
+    char* y_coordinate = itoa(current->y);
+    char* x_coordinate = itoa(current->x);
+    mvaddstr(31 + height, 0, "y: ");
+    mvaddstr(31 + height, 4, y_coordinate);
+
+    mvaddstr(31 + height, 10, "x: ");
+    mvaddstr(31 + height, 14, x_coordinate);
+    current = current->next;
+
+    height += 1;
+  } while (current != NULL);
+}
+
+char* itoa(size_t value) {
+  /* size_t buffer_size = 0; */
+  /*  */
+  size_t length = 0;
+
+  size_t copy_of_value = value;
+  while (copy_of_value) {
+    length += 1;
+
+    copy_of_value /= 10;
+  }
+
+  /* printf("length is %zu\n", length); */
+
+  char *result = malloc((length + 1) * sizeof(char));
+
+  /* double_t value_as_double = value; */
+  size_t remainder = value;
+  for (size_t i = length; i >= 1; i -= 1) {
+    double_t division = pow(10, i - 1);
+
+    size_t quotient = remainder / (size_t)division;
+    remainder = remainder % (size_t)division;
+    char ch = quotient + 48;
+    result[length - i] = ch;
+    /* printf( */
+    /*     "remainder is %zu char is %c (placed at %zu) is %zu and division is %f\n", */
+    /*     remainder, */
+    /*     ch, */
+    /*     length - i, */
+    /*     remainder, */
+    /*     division); */
+    /*  */
+    /* remainder /= 10; */
+  }
+
+  result[length] = '\0';
+
+  return result;
 }
