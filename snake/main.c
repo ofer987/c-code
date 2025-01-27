@@ -5,9 +5,25 @@
 #include <curses.h>
 #include <stdio.h>
 #include <math.h>
+#include <pthread.h>
+#include <errno.h>
 
-const size_t SCREEN_SIZE = 289;
+#define handle_error_en(en, msg) \
+  do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
+
+#define handle_error(msg) \
+  do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+/* Used as argument to thread_start() */
+struct thread_info {
+  pthread_t           thread_id;    /* ID returned by pthread_create() */
+  size_t              thread_num;   /* Application-defined thread # */
+  char                *argv_string; /* From command-line argument */
+  struct snake_struct *snake;
+};
+
 const size_t SIDE_SIZE = 17;
+const size_t SCREEN_SIZE = SIDE_SIZE * SIDE_SIZE;
 
 enum screen_state {
   AVAILABLE = 1,
@@ -29,6 +45,7 @@ struct coordinates coordinates;
 struct snake_struct {
   struct coordinates *head;
   size_t list_size;
+  bool   quit;
 
   enum snake_movement current_movement;
 };
@@ -63,6 +80,10 @@ struct coordinates* add_head(
     struct coordinates *head);
 void display_snake_coordinates(struct snake_struct *snake);
 char* itoa(size_t value);
+static void* keyboard_input(void *arg);
+
+pthread_cond_t keyboard_thread_started = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t render_lock = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char *argv[]) {
   srandom(time(NULL));
@@ -75,7 +96,9 @@ int main(int argc, char *argv[]) {
   };
   struct snake_struct snake = {
     .head = &head,
-    .list_size = 1
+    .list_size = 1,
+    .current_movement = RIGHT,
+    .quit = false
   };
 
   // Reset the screen
@@ -107,6 +130,7 @@ int main(int argc, char *argv[]) {
   /* take input chars one at a time, no wait for \n */
   (void) cbreak();
 
+  /* curs_threads */
   /* noecho input - in color */
   (void) noecho();
   /* (void) echo(); */
@@ -121,47 +145,68 @@ int main(int argc, char *argv[]) {
     init_pair(4, COLOR_BLUE,  COLOR_BLUE);
     init_pair(5, COLOR_WHITE, COLOR_BLACK);
   }
+  printf("here2\n");
 
+  // Create pthreads to capture keyboard input
+  int                 s;
+  pthread_attr_t      attr;
+  printf("here2\n");
+  struct thread_info *tinfo;
+
+  s = pthread_attr_init(&attr);
+  if (s != 0) {
+    handle_error_en(s, "pthread_attr_init");
+  }
+
+  tinfo = calloc(1, sizeof(*tinfo));
+  if (tinfo == NULL) {
+    handle_error("calloc");
+  }
+  printf("here2\n");
+
+  tinfo[0].thread_num = 1;
+  tinfo[0].snake = &snake;
+  s = pthread_create(&tinfo->thread_id,
+      &attr,
+      &keyboard_input,
+      &tinfo[0]);
+  if (s != 0) {
+    handle_error_en(s, "pthread_create");
+  }
+  s = pthread_attr_destroy(&attr);
+  if (s != 0) {
+    handle_error_en(s, "pthread_attr_destroy");
+  }
+
+  printf("here1\n");
+
+  pthread_mutex_lock(&render_lock);
+  pthread_cond_wait(&keyboard_thread_started, &render_lock);
+  refresh();
+  init_screen(screen_states, &snake, &food_location);
+  render_screen(screen_states);
   for (;;) {
-    size_t ch = getch();     /* refresh, accept single keystroke of input */
-    switch (ch) {
-      case KEY_LEFT:
-      case 'h':
-        snake.current_movement = LEFT;
+    clock_t start_time = clock();
+    clock_t difference;
+    do {
+      clock_t end_time = clock();
 
-        break;
-      case KEY_UP:
-      case 'k':
-        snake.current_movement = UP;
-
-        break;
-      case KEY_RIGHT:
-      case 'l':
-        snake.current_movement = RIGHT;
-
-        break;
-      case KEY_DOWN:
-      case 'j':
-      default:
-        snake.current_movement = DOWN;
-
-        break;
-    }
+      difference = end_time - start_time;
+    } while (difference < 100000);
 
     if (move_snake(screen_states, &snake, &food_location)) {
       generate_food(screen_states, &food_location);
     }
-    // display_snake_coordinates(&snake);
+
     refresh();
     init_screen(screen_states, &snake, &food_location);
     render_screen(screen_states);
-    /* attrset(COLOR_PAIR(5)); */
 
     if (!is_game_valid(screen_states, &snake)) {
       finish(0);
     }
 
-    if (ch == 'q') {
+    if (snake.quit) {
       finish(0);
     }
   }
@@ -171,6 +216,15 @@ int main(int argc, char *argv[]) {
 
 static void finish(int sig) {
   endwin();
+
+  /* void *res; */
+  /* int s = pthread_join(tinfo->thread_id, &res); */
+  /* if (s != 0) { */
+  /*   handle_error_en(s, "pthread_join"); */
+  /* } */
+  /* free(res); */
+  /* res = NULL; */
+  /* tinfo = NULL; */
 
   if (sig == 15) {
     exit(EXIT_FAILURE);
@@ -208,7 +262,7 @@ void render_screen(enum screen_state *screen_states) {
     attrset(COLOR_PAIR(state));
 
     struct coordinates coords = index_to_coorindates(i);
-    mvaddch(coords.y, coords.x, state + 48);
+    mvaddch(coords.y, coords.x, ' ');
   }
 }
 
@@ -385,6 +439,7 @@ void display_snake_coordinates(struct snake_struct *snake) {
 char* itoa(size_t value) {
   size_t length = 0;
 
+  exit(value);
   size_t copy_of_value = value;
   while (copy_of_value) {
     length += 1;
@@ -407,3 +462,56 @@ char* itoa(size_t value) {
 
   return result;
 }
+
+static void* keyboard_input(void *arg) {
+  struct thread_info *info = arg;
+  struct snake_struct *snake = info->snake;
+
+  if (snake == NULL) {
+    exit(EXIT_FAILURE);
+  }
+
+  pthread_cond_signal(&keyboard_thread_started);
+
+  timeout(200);
+  for (;;) {
+    size_t ch = getch();     /* refresh, accept single keystroke of input */
+    switch (ch) {
+      case 'q':
+        snake->quit = true;
+
+        break;
+      case KEY_LEFT:
+      case 'h':
+        if (snake->current_movement != RIGHT) {
+          snake->current_movement = LEFT;
+        }
+
+        break;
+      case KEY_UP:
+      case 'k':
+        if (snake->current_movement == DOWN) {
+          snake->current_movement = UP;
+        }
+
+        break;
+      case KEY_RIGHT:
+      case 'l':
+        if (snake->current_movement == LEFT) {
+          snake->current_movement = RIGHT;
+        }
+
+        break;
+      case KEY_DOWN:
+      case 'j':
+        if (snake->current_movement == UP) {
+          snake->current_movement = DOWN;
+        }
+
+        break;
+    }
+  }
+
+  return NULL;
+}
+
