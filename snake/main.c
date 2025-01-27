@@ -5,9 +5,25 @@
 #include <curses.h>
 #include <stdio.h>
 #include <math.h>
+#include <pthread.h>
+#include <errno.h>
 
-const size_t SCREEN_SIZE = 289;
+#define handle_error_en(en, msg) \
+  do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
+
+#define handle_error(msg) \
+  do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+/* Used as argument to thread_start() */
+struct thread_info {
+  pthread_t           thread_id;    /* ID returned by pthread_create() */
+  size_t              thread_num;   /* Application-defined thread # */
+  char                *argv_string; /* From command-line argument */
+  struct snake_struct *snake;
+};
+
 const size_t SIDE_SIZE = 17;
+const size_t SCREEN_SIZE = SIDE_SIZE * SIDE_SIZE;
 
 enum screen_state {
   AVAILABLE = 1,
@@ -29,6 +45,7 @@ struct coordinates coordinates;
 struct snake_struct {
   struct coordinates *head;
   size_t list_size;
+  bool   quit;
 
   enum snake_movement current_movement;
 };
@@ -63,6 +80,9 @@ struct coordinates* add_head(
     struct coordinates *head);
 void display_snake_coordinates(struct snake_struct *snake);
 char* itoa(size_t value);
+/* static void* keyboard_input(void *arg); */
+
+struct thread_info *tinfo;
 
 int main(int argc, char *argv[]) {
   srandom(time(NULL));
@@ -122,6 +142,37 @@ int main(int argc, char *argv[]) {
     init_pair(5, COLOR_WHITE, COLOR_BLACK);
   }
 
+  // Create pthreads to capture keyboard input
+  int                 s;
+  pthread_attr_t      attr;
+
+  s = pthread_attr_init(&attr);
+  if (s != 0) {
+    handle_error_en(s, "pthread_attr_init");
+  }
+
+  tinfo = calloc(1, sizeof(*tinfo));
+  if (tinfo == NULL) {
+    handle_error("calloc");
+  }
+
+  /* tinfo->thread_num = 1; */
+  /* tinfo->snake = &snake; */
+  /* s = pthread_create(&tinfo->thread_id, */
+  /*     &attr, */
+  /*     &keyboard_input, */
+  /*     tinfo); */
+  /* if (s != 0) { */
+  /*   handle_error_en(s, "pthread_create"); */
+  /* } */
+  /* s = pthread_attr_destroy(&attr); */
+  /* if (s != 0) { */
+  /*   handle_error_en(s, "pthread_attr_destroy"); */
+  /* } */
+
+  refresh();
+  init_screen(screen_states, &snake, &food_location);
+  render_screen(screen_states);
   for (;;) {
     size_t ch = getch();     /* refresh, accept single keystroke of input */
     switch (ch) {
@@ -161,7 +212,7 @@ int main(int argc, char *argv[]) {
       finish(0);
     }
 
-    if (ch == 'q') {
+    if (snake.quit) {
       finish(0);
     }
   }
@@ -171,6 +222,15 @@ int main(int argc, char *argv[]) {
 
 static void finish(int sig) {
   endwin();
+
+  /* void *res; */
+  /* int s = pthread_join(tinfo->thread_id, &res); */
+  /* if (s != 0) { */
+  /*   handle_error_en(s, "pthread_join"); */
+  /* } */
+  /* free(res); */
+  /* res = NULL; */
+  /* tinfo = NULL; */
 
   if (sig == 15) {
     exit(EXIT_FAILURE);
@@ -407,3 +467,51 @@ char* itoa(size_t value) {
 
   return result;
 }
+
+/* static void* keyboard_input(void *arg) { */
+/*   #<{(| struct thread_info *tinfo = arg; |)}># */
+/*   struct snake_struct *snake = arg; */
+/*   char *uargv = NULL; */
+/*  */
+/*   size_t ch = getch();     #<{(| refresh, accept single keystroke of input |)}># */
+/*   switch (ch) { */
+/*     case 'q': */
+/*       snake->quit = true; */
+/*  */
+/*       break; */
+/*     case KEY_LEFT: */
+/*     case 'h': */
+/*       snake->current_movement = LEFT; */
+/*  */
+/*       break; */
+/*     case KEY_UP: */
+/*     case 'k': */
+/*       snake->current_movement = UP; */
+/*  */
+/*       break; */
+/*     case KEY_RIGHT: */
+/*     case 'l': */
+/*       snake->current_movement = RIGHT; */
+/*  */
+/*       break; */
+/*     case KEY_DOWN: */
+/*     case 'j': */
+/*     default: */
+/*       snake->current_movement = DOWN; */
+/*  */
+/*       break; */
+/*   } */
+/*  */
+/*   #<{(| printf("Thread %d: top of stack near %p; argv_string=%s\n", |)}># */
+/*   #<{(|     tinfo->thread_num, (void *) &tinfo, tinfo->argv_string); |)}># */
+/*   #<{(|  |)}># */
+/*   #<{(| uargv = strdup(tinfo->argv_string); |)}># */
+/*   #<{(| if (uargv == NULL) |)}># */
+/*   #<{(|   handle_error("strdup"); |)}># */
+/*   #<{(|  |)}># */
+/*   #<{(| for (char *p = uargv; *p != '\0'; p++) |)}># */
+/*   #<{(|   *p = toupper(*p); |)}># */
+/*  */
+/*   return uargv; */
+/* } */
+
