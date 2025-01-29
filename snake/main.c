@@ -25,8 +25,12 @@ struct thread_info {
   struct snake_struct *snake;
 };
 
-#define SIDE_SIZE 17
-#define SCREEN_SIZE 289
+#define SIDE_SIZE 30
+#define SCREEN_SIZE 900
+
+#define EMPTY_MESSAGE \
+  "                                                                                "
+#define FIRST_MESSAGE_LINE 32
 
 enum screen_state {
   AVAILABLE = 1,
@@ -183,9 +187,13 @@ int main(int argc, char *argv[]) {
     usleep(100000);
 
     if (snake.pause) {
-      tb_printf(0, 20, TB_WHITE, TB_DEFAULT, "You have paused the game");
-      tb_printf(0, 21, TB_WHITE, TB_DEFAULT, "Press any key to continue");
+      tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have paused the game");
+      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to continue");
       render_screen(screen_states);
+
+      // Remove the message
+      tb_printf(0, FIRST_MESSAGE_LINE, TB_DEFAULT, TB_DEFAULT, EMPTY_MESSAGE);
+      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_DEFAULT, TB_DEFAULT, EMPTY_MESSAGE);
 
       continue;
     }
@@ -193,8 +201,8 @@ int main(int argc, char *argv[]) {
     // Get the snake's head's new coordinates
     struct coordinates new_head = new_head_coordinates(&snake);
     if (!is_game_valid(screen_states, new_head)) {
-      tb_printf(0, 20, TB_WHITE, TB_DEFAULT, "You have lost :(");
-      tb_printf(0, 21, TB_WHITE, TB_DEFAULT, "Press any key to quit");
+      tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have lost :(");
+      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to quit");
       render_screen(screen_states);
 
       finish(0);
@@ -214,8 +222,8 @@ int main(int argc, char *argv[]) {
     render_screen(screen_states);
 
     if (snake.quit) {
-      tb_printf(0, 20, TB_WHITE, TB_DEFAULT, "You have decided to leave");
-      tb_printf(0, 21, TB_WHITE, TB_DEFAULT, "Press any key to quit");
+      tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have decided to leave");
+      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to quit");
       render_screen(screen_states);
 
       finish(0);
@@ -234,13 +242,9 @@ static void finish(int sig) {
   }
 
   // terminate the keyboard_input thread
-  /* void *result = NULL; */
-  /* printf(keyboard_thread_id); */
   pthread_join(keyboard_thread_id, NULL);
   pthread_cond_destroy(&keyboard_thread_started_cond);
   pthread_mutex_destroy(&render_lock_mutex);
-  tb_printf(20, 20, TB_BLACK, TB_WHITE, "thread is is %p", &keyboard_thread_id);
-  pthread_join(keyboard_thread_id, NULL);
 
   // shutdown the termbox2
   tb_shutdown();
@@ -408,24 +412,6 @@ struct coordinates* add_head(
 
   return head;
 }
-
-/* void display_snake_coordinates(struct snake_struct *snake) { */
-/*   struct coordinates *current = snake->head; */
-/*  */
-/*   size_t height = 0; */
-/*   do { */
-/*     char* y_coordinate = itoa(current->y); */
-/*     char* x_coordinate = itoa(current->x); */
-/*     mvaddstr(31 + height, 0, "y: "); */
-/*     mvaddstr(31 + height, 4, y_coordinate); */
-/*  */
-/*     mvaddstr(31 + height, 10, "x: "); */
-/*     mvaddstr(31 + height, 14, x_coordinate); */
-/*     current = current->next; */
-/*  */
-/*     height += 1; */
-/*   } while (current != NULL); */
-/* } */
 
 char* itoa(size_t value) {
   size_t length = 0;
