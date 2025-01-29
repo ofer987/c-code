@@ -28,6 +28,8 @@ struct thread_info {
 #define SIDE_SIZE 30
 #define SCREEN_SIZE 900
 
+#define EMPTY_MESSAGE \
+  "                                                                                "
 #define FIRST_MESSAGE_LINE 32
 
 enum screen_state {
@@ -188,6 +190,10 @@ int main(int argc, char *argv[]) {
       tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have paused the game");
       tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to continue");
       render_screen(screen_states);
+
+      // Remove the message
+      tb_printf(0, FIRST_MESSAGE_LINE, TB_DEFAULT, TB_DEFAULT, EMPTY_MESSAGE);
+      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_DEFAULT, TB_DEFAULT, EMPTY_MESSAGE);
 
       continue;
     }
