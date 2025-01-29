@@ -38,7 +38,7 @@ enum screen_state {
 
 size_t screen_colors[TOTAL] = {
   [AVAILABLE] = TB_WHITE,
-  [USED_BY_SNAKE_TAIL] = TB_CYAN,
+  [USED_BY_SNAKE_TAIL] = TB_GREEN,
   [USED_BY_SNAKE_HEAD] = TB_RED,
   [USED_BY_FOOD] = TB_BLUE,
 };
