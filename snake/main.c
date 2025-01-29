@@ -413,24 +413,6 @@ struct coordinates* add_head(
   return head;
 }
 
-/* void display_snake_coordinates(struct snake_struct *snake) { */
-/*   struct coordinates *current = snake->head; */
-/*  */
-/*   size_t height = 0; */
-/*   do { */
-/*     char* y_coordinate = itoa(current->y); */
-/*     char* x_coordinate = itoa(current->x); */
-/*     mvaddstr(31 + height, 0, "y: "); */
-/*     mvaddstr(31 + height, 4, y_coordinate); */
-/*  */
-/*     mvaddstr(31 + height, 10, "x: "); */
-/*     mvaddstr(31 + height, 14, x_coordinate); */
-/*     current = current->next; */
-/*  */
-/*     height += 1; */
-/*   } while (current != NULL); */
-/* } */
-
 char* itoa(size_t value) {
   size_t length = 0;
 
