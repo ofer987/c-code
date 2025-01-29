@@ -78,10 +78,7 @@ void init_screen(
     struct snake_struct *snake,
     struct coordinates *food_location);
 
-void eat_food(
-    struct coordinates snake_head,
-    struct snake_struct *snake,
-    struct coordinates *food_location);
+void eat_food(struct snake_struct *snake, struct coordinates *food_location);
 bool is_same_coordinates(
     struct coordinates *coord_01,
     struct coordinates *coord_02);
@@ -90,10 +87,10 @@ bool generate_food(
     enum screen_state *screen_states,
     struct coordinates *food_location);
 struct coordinates new_head_coordinates(struct snake_struct *snake);
-void move_snake(struct coordinates new_head, struct snake_struct *snake);
+void move_snake(struct coordinates *new_head, struct snake_struct *snake);
 bool is_game_valid(
     enum screen_state *screen_states,
-    struct coordinates snake_head);
+    struct coordinates *snake_head);
 struct coordinates index_to_coorindates(size_t index);
 size_t coordinates_to_index(size_t x, size_t y);
 struct coordinates* add_head(
@@ -200,7 +197,7 @@ int main(int argc, char *argv[]) {
 
     // Get the snake's head's new coordinates
     struct coordinates new_head = new_head_coordinates(&snake);
-    if (!is_game_valid(screen_states, new_head)) {
+    if (!is_game_valid(screen_states, &new_head)) {
       tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have lost :(");
       tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to quit");
       render_screen(screen_states);
@@ -211,11 +208,11 @@ int main(int argc, char *argv[]) {
     // Eat the food; or
     // Move the snake
     if (is_same_coordinates(&new_head, &food_location)) {
-      eat_food(new_head, &snake, &food_location);
+      eat_food(&snake, &food_location);
 
       generate_food(screen_states, &food_location);
     } else {
-      move_snake(new_head, &snake);
+      move_snake(&new_head, &snake);
     }
 
     init_screen(screen_states, &snake, &food_location);
@@ -329,9 +326,9 @@ struct coordinates new_head_coordinates(struct snake_struct *snake) {
   return new_head;
 }
 
-void move_snake(struct coordinates new_head, struct snake_struct *snake) {
-  size_t previous_y = new_head.y;
-  size_t previous_x = new_head.x;
+void move_snake(struct coordinates *new_head, struct snake_struct *snake) {
+  size_t previous_y = new_head->y;
+  size_t previous_x = new_head->x;
   struct coordinates *current = snake->head;
 
   do {
@@ -350,18 +347,18 @@ void move_snake(struct coordinates new_head, struct snake_struct *snake) {
 
 bool is_game_valid(
     enum screen_state *screen_states,
-    struct coordinates snake_head) {
-  if (snake_head.y < 0 || snake_head.y >= SIDE_SIZE) {
+    struct coordinates *snake_head) {
+  if (snake_head->y < 0 || snake_head->y >= SIDE_SIZE) {
     return false;
   }
 
-  if (snake_head.x < 0 || snake_head.x >= SIDE_SIZE) {
+  if (snake_head->x < 0 || snake_head->x >= SIDE_SIZE) {
     return false;
   }
 
   size_t snake_head_location = coordinates_to_index(
-      snake_head.x,
-      snake_head.y);
+      snake_head->x,
+      snake_head->y);
   enum screen_state snake_location = screen_states[snake_head_location];
   if (snake_location == USED_BY_SNAKE_TAIL) {
     return false;
@@ -383,10 +380,7 @@ size_t coordinates_to_index(size_t x, size_t y) {
   return SIDE_SIZE * y + x;
 }
 
-void eat_food(
-    struct coordinates snake_head,
-    struct snake_struct *snake,
-    struct coordinates *food_location) {
+void eat_food(struct snake_struct *snake, struct coordinates *food_location) {
   struct coordinates *new_head = malloc(sizeof(struct coordinates));
   new_head->y = food_location->y;
   new_head->x = food_location->x;
