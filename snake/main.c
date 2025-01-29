@@ -236,13 +236,9 @@ static void finish(int sig) {
   }
 
   // terminate the keyboard_input thread
-  /* void *result = NULL; */
-  /* printf(keyboard_thread_id); */
   pthread_join(keyboard_thread_id, NULL);
   pthread_cond_destroy(&keyboard_thread_started_cond);
   pthread_mutex_destroy(&render_lock_mutex);
-  tb_printf(20, 20, TB_BLACK, TB_WHITE, "thread is is %p", &keyboard_thread_id);
-  pthread_join(keyboard_thread_id, NULL);
 
   // shutdown the termbox2
   tb_shutdown();
