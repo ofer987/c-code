@@ -38,7 +38,7 @@ enum screen_state {
 
 size_t screen_colors[TOTAL] = {
   [AVAILABLE] = TB_WHITE,
-  [USED_BY_SNAKE_TAIL] = TB_CYAN,
+  [USED_BY_SNAKE_TAIL] = TB_GREEN,
   [USED_BY_SNAKE_HEAD] = TB_RED,
   [USED_BY_FOOD] = TB_BLUE,
 };
@@ -74,17 +74,22 @@ void init_screen(
     struct snake_struct *snake,
     struct coordinates *food_location);
 
+void eat_food(
+    struct coordinates snake_head,
+    struct snake_struct *snake,
+    struct coordinates *food_location);
+bool is_same_coordinates(
+    struct coordinates *coord_01,
+    struct coordinates *coord_02);
 void render_screen(enum screen_state *screen_states);
 bool generate_food(
     enum screen_state *screen_states,
     struct coordinates *food_location);
-bool move_snake(
-    enum screen_state *screen_states,
-    struct snake_struct *snake,
-    struct coordinates *food_location);
+struct coordinates new_head_coordinates(struct snake_struct *snake);
+void move_snake(struct coordinates new_head, struct snake_struct *snake);
 bool is_game_valid(
     enum screen_state *screen_states,
-    struct snake_struct *snake);
+    struct coordinates snake_head);
 struct coordinates index_to_coorindates(size_t index);
 size_t coordinates_to_index(size_t x, size_t y);
 struct coordinates* add_head(
@@ -178,23 +183,35 @@ int main(int argc, char *argv[]) {
     usleep(100000);
 
     if (snake.pause) {
+      tb_printf(0, 20, TB_WHITE, TB_DEFAULT, "You have paused the game");
+      tb_printf(0, 21, TB_WHITE, TB_DEFAULT, "Press any key to continue");
+      render_screen(screen_states);
+
       continue;
     }
 
-    if (move_snake(screen_states, &snake, &food_location)) {
-      generate_food(screen_states, &food_location);
-    }
-
-    init_screen(screen_states, &snake, &food_location);
-    render_screen(screen_states);
-
-    if (!is_game_valid(screen_states, &snake)) {
+    // Get the snake's head's new coordinates
+    struct coordinates new_head = new_head_coordinates(&snake);
+    if (!is_game_valid(screen_states, new_head)) {
       tb_printf(0, 20, TB_WHITE, TB_DEFAULT, "You have lost :(");
       tb_printf(0, 21, TB_WHITE, TB_DEFAULT, "Press any key to quit");
       render_screen(screen_states);
 
       finish(0);
     }
+
+    // Eat the food; or
+    // Move the snake
+    if (is_same_coordinates(&new_head, &food_location)) {
+      eat_food(new_head, &snake, &food_location);
+
+      generate_food(screen_states, &food_location);
+    } else {
+      move_snake(new_head, &snake);
+    }
+
+    init_screen(screen_states, &snake, &food_location);
+    render_screen(screen_states);
 
     if (snake.quit) {
       tb_printf(0, 20, TB_WHITE, TB_DEFAULT, "You have decided to leave");
@@ -288,10 +305,7 @@ bool generate_food(
   return true;
 }
 
-bool move_snake(
-    enum screen_state *screen_states,
-    struct snake_struct *snake,
-    struct coordinates *food_location) {
+struct coordinates new_head_coordinates(struct snake_struct *snake) {
   struct coordinates new_head;
 
   if (snake->current_movement == LEFT) {
@@ -308,19 +322,14 @@ bool move_snake(
     new_head.x = snake->head->x;
   }
 
-  if (new_head.y == food_location->y &&
-      new_head.x == food_location->x) {
-    struct coordinates *added_head = malloc(sizeof(struct coordinates));
-    added_head->y = food_location->y;
-    added_head->x = food_location->x;
+  return new_head;
+}
 
-    add_head(snake, added_head);
-
-    return true;
-  }
+void move_snake(struct coordinates new_head, struct snake_struct *snake) {
   size_t previous_y = new_head.y;
   size_t previous_x = new_head.x;
   struct coordinates *current = snake->head;
+
   do {
     size_t temp_y = current->y;
     size_t temp_x = current->x;
@@ -333,24 +342,22 @@ bool move_snake(
 
     current = current->next;
   } while (current != NULL);
-
-  return false;
 }
 
 bool is_game_valid(
     enum screen_state *screen_states,
-    struct snake_struct *snake) {
-  if (snake->head->y < 0 || snake->head->y >= SIDE_SIZE) {
+    struct coordinates snake_head) {
+  if (snake_head.y < 0 || snake_head.y >= SIDE_SIZE) {
     return false;
   }
 
-  if (snake->head->x < 0 || snake->head->x >= SIDE_SIZE) {
+  if (snake_head.x < 0 || snake_head.x >= SIDE_SIZE) {
     return false;
   }
 
   size_t snake_head_location = coordinates_to_index(
-      snake->head->x,
-      snake->head->y);
+      snake_head.x,
+      snake_head.y);
   enum screen_state snake_location = screen_states[snake_head_location];
   if (snake_location == USED_BY_SNAKE_TAIL) {
     return false;
@@ -372,39 +379,22 @@ size_t coordinates_to_index(size_t x, size_t y) {
   return SIDE_SIZE * y + x;
 }
 
-bool eat_food(struct snake_struct *snake, struct coordinates *food_location) {
-  bool new_head = false;
+void eat_food(
+    struct coordinates snake_head,
+    struct snake_struct *snake,
+    struct coordinates *food_location) {
+  struct coordinates *new_head = malloc(sizeof(struct coordinates));
+  new_head->y = food_location->y;
+  new_head->x = food_location->x;
+  new_head->next = NULL;
 
-  if (snake->current_movement == LEFT
-      && snake->head->y == food_location->y
-      && snake->head->x + 1 == food_location->x) {
-    new_head = true;
-  } else if (snake->current_movement == UP
-      && snake->head->y - 1 == food_location->y
-      && snake->head->x == food_location->x) {
-    new_head = true;
-  } else if (snake->current_movement == RIGHT
-      && snake->head->y == food_location->y
-      && snake->head->x - 1 == food_location->x) {
-    new_head = true;
-  } else if (snake->current_movement == DOWN
-      && snake->head->y + 1 == food_location->y
-      && snake->head->x == food_location->x) {
-    new_head = true;
-  }
+  add_head(snake, new_head);
+}
 
-  if (new_head) {
-    struct coordinates *new_head = malloc(sizeof(struct coordinates));
-    new_head->y = food_location->y;
-    new_head->x = food_location->x;
-    new_head->next = NULL;
-
-    add_head(snake, new_head);
-
-    return true;
-  }
-
-  return false;
+bool is_same_coordinates(
+    struct coordinates *coord_01,
+    struct coordinates *coord_02) {
+  return coord_01->x == coord_02->x && coord_01->y == coord_02->y;
 }
 
 struct coordinates* add_head(
