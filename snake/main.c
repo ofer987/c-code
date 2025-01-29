@@ -25,8 +25,10 @@ struct thread_info {
   struct snake_struct *snake;
 };
 
-#define SIDE_SIZE 17
-#define SCREEN_SIZE 289
+#define SIDE_SIZE 30
+#define SCREEN_SIZE 900
+
+#define FIRST_MESSAGE_LINE 32
 
 enum screen_state {
   AVAILABLE = 1,
@@ -183,8 +185,8 @@ int main(int argc, char *argv[]) {
     usleep(100000);
 
     if (snake.pause) {
-      tb_printf(0, 20, TB_WHITE, TB_DEFAULT, "You have paused the game");
-      tb_printf(0, 21, TB_WHITE, TB_DEFAULT, "Press any key to continue");
+      tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have paused the game");
+      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to continue");
       render_screen(screen_states);
 
       continue;
@@ -193,8 +195,8 @@ int main(int argc, char *argv[]) {
     // Get the snake's head's new coordinates
     struct coordinates new_head = new_head_coordinates(&snake);
     if (!is_game_valid(screen_states, new_head)) {
-      tb_printf(0, 20, TB_WHITE, TB_DEFAULT, "You have lost :(");
-      tb_printf(0, 21, TB_WHITE, TB_DEFAULT, "Press any key to quit");
+      tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have lost :(");
+      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to quit");
       render_screen(screen_states);
 
       finish(0);
@@ -214,8 +216,8 @@ int main(int argc, char *argv[]) {
     render_screen(screen_states);
 
     if (snake.quit) {
-      tb_printf(0, 20, TB_WHITE, TB_DEFAULT, "You have decided to leave");
-      tb_printf(0, 21, TB_WHITE, TB_DEFAULT, "Press any key to quit");
+      tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have decided to leave");
+      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to quit");
       render_screen(screen_states);
 
       finish(0);
