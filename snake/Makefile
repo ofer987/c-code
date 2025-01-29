@@ -23,8 +23,8 @@
 # 'musl-tools'. Other Linux distributions such as Alpine directly ship
 # with musl as their C library.
 # CC ?= /usr/local/musl/bin/musl-gcc
-CC = clang
-# CC = gcc-14
+# CC = clang
+CC = gcc-14
 #CC = icc
 #CC = c99
 
@@ -37,7 +37,7 @@ STD = -std=c2x
 
 # Warning options. It is important that the compiler gives you all
 # that he knows.
-WAR = -Wall -Wattributes -lform -lncurses
+WAR = -Wall -Wattributes -lform
 
 # Optimization options. The ones here are my favorite, maximal
 # optimization for the machine on which we are compiling and maximal
