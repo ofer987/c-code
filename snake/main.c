@@ -4,7 +4,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <math.h>
 #include <pthread.h>
 #include <errno.h>
 
@@ -91,7 +90,7 @@ struct snake_screen {
   size_t screen_state[SCREEN_SIZE];
 };
 
-static void finish(int sig);
+static void finish(int sig, struct snake_struct *snake, time_t start_time);
 
 void init_screen(
     enum screen_state *screen_states,
@@ -161,10 +160,6 @@ int main(int argc, char *argv[]) {
   struct coordinates food_location;
   generate_food(screen_states, &food_location);
 
-  /* initialize your non-curses data structures here */
-  (void) signal(SIGINT, finish);
-  (void) signal(SIGTERM, finish);
-
   /* initialize the termbox library */
   if (tb_init() != 0) {
     exit(EXIT_FAILURE);
@@ -199,6 +194,7 @@ int main(int argc, char *argv[]) {
     handle_error_en(s, "pthread_attr_destroy");
   }
 
+  time_t start_time = time(NULL);
   for (;;) {
     usleep(100000);
 
@@ -224,7 +220,7 @@ int main(int argc, char *argv[]) {
       tb_printf(MESSAGE_START_COLUMN, SECOND_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "Press any key to quit");
       render_screen(screen_states);
 
-      finish(0);
+      finish(0, &snake, start_time);
     }
 
     // Eat the food; or
@@ -242,20 +238,25 @@ int main(int argc, char *argv[]) {
       tb_printf(MESSAGE_START_COLUMN, SECOND_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "Press any key to quit");
       render_screen(screen_states);
 
-      finish(0);
+      finish(0, &snake, start_time);
     }
   }
 
-  finish(0);
+  finish(0, &snake, start_time);
 }
 
-static void finish(int sig) {
+static void finish(int sig, struct snake_struct *snake, time_t start_time) {
+  time_t end_time = time(NULL);
   is_finished = true;
 
-  printf("signal is %d", sig);
-  if (sig == SIGKILL) {
-    exit(EXIT_FAILURE);
-  }
+  time_t game_time = end_time - start_time;
+  time_t game_in_minutes = game_time / 60;
+  time_t game_in_seconds = game_time % 60;
+
+  FILE *results = fopen("./results.txt", "wt");
+
+  fprintf(results, "Snake size is %zu\n", snake->list_size);
+  fprintf(results, "The game took %zu minutes and %zu seconds\n", game_in_minutes, game_in_seconds);
 
   // terminate the keyboard_input thread
   pthread_join(keyboard_thread_id, NULL);
