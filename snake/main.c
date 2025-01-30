@@ -4,7 +4,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <math.h>
 #include <pthread.h>
 #include <errno.h>
 
@@ -28,15 +27,32 @@ struct thread_info {
 #define SIDE_SIZE 30
 #define SCREEN_SIZE 900
 
+#define MESSAGE_BOARD_START_COLUMN  0
+#define MESSAGE_BOARD_START_ROW     32
+
+#define MESSAGE_BOARD_WIDTH         30
+#define MESSAGE_BOARD_HEIGHT        11
+
+#define BOARDER_ROW                 "-"
+#define BOARDER_COLUMN              "|"
+#define BOARDER_TOP_LEFT            "/"
+#define BOARDER_TOP_RIGHT           "\\"
+#define BOARDER_BOTTOM_LEFT         "\\"
+#define BOARDER_BOTTOM_RIGHT        "/"
+
 #define EMPTY_MESSAGE \
   "                                                                                "
-#define FIRST_MESSAGE_LINE 32
+#define MESSAGE_START_COLUMN 3
+#define FIRST_MESSAGE_LINE 37
+#define SECOND_MESSAGE_LINE 38
 
 enum screen_state {
   AVAILABLE = 1,
   USED_BY_SNAKE_TAIL,
   USED_BY_SNAKE_HEAD,
   USED_BY_FOOD,
+  USED_BY_BOARDER,
+  USED_BY_MESSAGE,
   TOTAL
 };
 
@@ -45,7 +61,10 @@ size_t screen_colors[TOTAL] = {
   [USED_BY_SNAKE_TAIL] = TB_GREEN,
   [USED_BY_SNAKE_HEAD] = TB_RED,
   [USED_BY_FOOD] = TB_BLUE,
+  [USED_BY_BOARDER] = 9,
+  [USED_BY_MESSAGE] = TB_WHITE
 };
+
 enum snake_movement { LEFT = 0, UP, RIGHT, DOWN };
 
 struct coordinates {
@@ -71,7 +90,7 @@ struct snake_screen {
   size_t screen_state[SCREEN_SIZE];
 };
 
-static void finish(int sig);
+static void finish(int sig, struct snake_struct *snake, time_t start_time);
 
 void init_screen(
     enum screen_state *screen_states,
@@ -97,7 +116,8 @@ struct coordinates* add_head(
     struct snake_struct *snake,
     struct coordinates *head);
 void display_snake_coordinates(struct snake_struct *snake);
-char* itoa(size_t value);
+
+static void render_the_message_box_boarders();
 static void* keyboard_input(void *arg);
 
 static void turn_left(struct snake_struct *snake);
@@ -140,10 +160,6 @@ int main(int argc, char *argv[]) {
   struct coordinates food_location;
   generate_food(screen_states, &food_location);
 
-  /* initialize your non-curses data structures here */
-  (void) signal(SIGINT, finish);
-  (void) signal(SIGTERM, finish);
-
   /* initialize the termbox library */
   if (tb_init() != 0) {
     exit(EXIT_FAILURE);
@@ -178,19 +194,21 @@ int main(int argc, char *argv[]) {
     handle_error_en(s, "pthread_attr_destroy");
   }
 
-  init_screen(screen_states, &snake, &food_location);
-  render_screen(screen_states);
+  time_t start_time = time(NULL);
   for (;;) {
     usleep(100000);
 
+    init_screen(screen_states, &snake, &food_location);
+    render_screen(screen_states);
+
     if (snake.pause) {
-      tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have paused the game");
-      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to continue");
+      tb_printf(MESSAGE_START_COLUMN, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have paused the game");
+      tb_printf(MESSAGE_START_COLUMN, SECOND_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "Press any key to continue");
       render_screen(screen_states);
 
       // Remove the message
-      tb_printf(0, FIRST_MESSAGE_LINE, TB_DEFAULT, TB_DEFAULT, EMPTY_MESSAGE);
-      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_DEFAULT, TB_DEFAULT, EMPTY_MESSAGE);
+      tb_printf(MESSAGE_START_COLUMN, FIRST_MESSAGE_LINE, TB_DEFAULT, TB_DEFAULT, EMPTY_MESSAGE);
+      tb_printf(MESSAGE_START_COLUMN, SECOND_MESSAGE_LINE, TB_DEFAULT, TB_DEFAULT, EMPTY_MESSAGE);
 
       continue;
     }
@@ -198,11 +216,11 @@ int main(int argc, char *argv[]) {
     // Get the snake's head's new coordinates
     struct coordinates new_head = new_head_coordinates(&snake);
     if (!is_game_valid(screen_states, &new_head)) {
-      tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have lost :(");
-      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to quit");
+      tb_printf(MESSAGE_START_COLUMN, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have lost :(");
+      tb_printf(MESSAGE_START_COLUMN, SECOND_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "Press any key to quit");
       render_screen(screen_states);
 
-      finish(0);
+      finish(0, &snake, start_time);
     }
 
     // Eat the food; or
@@ -215,35 +233,37 @@ int main(int argc, char *argv[]) {
       move_snake(&new_head, &snake);
     }
 
-    init_screen(screen_states, &snake, &food_location);
-    render_screen(screen_states);
-
     if (snake.quit) {
-      tb_printf(0, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have decided to leave");
-      tb_printf(0, FIRST_MESSAGE_LINE + 1, TB_WHITE, TB_DEFAULT, "Press any key to quit");
+      tb_printf(MESSAGE_START_COLUMN, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have decided to leave");
+      tb_printf(MESSAGE_START_COLUMN, SECOND_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "Press any key to quit");
       render_screen(screen_states);
 
-      finish(0);
+      finish(0, &snake, start_time);
     }
   }
 
-  finish(0);
+  finish(0, &snake, start_time);
 }
 
-static void finish(int sig) {
+static void finish(int sig, struct snake_struct *snake, time_t start_time) {
+  time_t end_time = time(NULL);
   is_finished = true;
 
-  printf("signal is %d", sig);
-  if (sig == 9) {
-    exit(EXIT_FAILURE);
-  }
+  time_t game_time = end_time - start_time;
+  time_t game_in_minutes = game_time / 60;
+  time_t game_in_seconds = game_time % 60;
+
+  FILE *results = fopen("./results.txt", "wt");
+
+  fprintf(results, "Snake size is %zu\n", snake->list_size);
+  fprintf(results, "The game took %zu minutes and %zu seconds\n", game_in_minutes, game_in_seconds);
 
   // terminate the keyboard_input thread
   pthread_join(keyboard_thread_id, NULL);
   pthread_cond_destroy(&keyboard_thread_started_cond);
   pthread_mutex_destroy(&render_lock_mutex);
 
-  // shutdown the termbox2
+  // shutdown termbox2
   tb_shutdown();
 
   exit(EXIT_SUCCESS);
@@ -281,6 +301,8 @@ void render_screen(enum screen_state *screen_states) {
 
     tb_printf(coords.x, coords.y, color, color, " ");
   }
+
+  render_the_message_box_boarders();
 
   tb_present();
 }
@@ -407,31 +429,40 @@ struct coordinates* add_head(
   return head;
 }
 
-char* itoa(size_t value) {
-  size_t length = 0;
+static void render_the_message_box_boarders() {
+  size_t color = screen_colors[USED_BY_BOARDER];
 
-  exit(value);
-  size_t copy_of_value = value;
-  while (copy_of_value) {
-    length += 1;
-
-    copy_of_value /= 10;
+  // LEFT Boarder
+  for (size_t y = MESSAGE_BOARD_START_ROW + 1; y < MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT; y += 1) {
+    tb_printf(MESSAGE_BOARD_START_COLUMN, y, color, TB_DEFAULT, BOARDER_COLUMN);
   }
 
-  char *result = malloc((length + 1) * sizeof(char));
-  size_t remainder = value;
-  for (size_t i = length; i >= 1; i -= 1) {
-    double_t division = pow(10, i - 1);
-
-    size_t quotient = remainder / (size_t)division;
-    remainder = remainder % (size_t)division;
-    char ch = quotient + 48;
-    result[length - i] = ch;
+  // TOP Boarder
+  for (size_t x = MESSAGE_BOARD_START_COLUMN + 1; x < MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH; x += 1) {
+    tb_printf(x, MESSAGE_BOARD_START_ROW, color, TB_DEFAULT, BOARDER_ROW);
   }
 
-  result[length] = '\0';
+  // RIGHT Boarder
+  for (size_t y = MESSAGE_BOARD_START_ROW + 1; y < MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT; y += 1) {
+    tb_printf(MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH, y, color, TB_DEFAULT, BOARDER_COLUMN);
+  }
 
-  return result;
+  // BOTTOM Boarder
+  for (size_t x = MESSAGE_BOARD_START_COLUMN + 1; x < MESSAGE_BOARD_WIDTH; x += 1) {
+    tb_printf(x, MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT, color, TB_DEFAULT, BOARDER_ROW);
+  }
+
+  // TOP-LEFT Corner
+  tb_printf(MESSAGE_BOARD_START_COLUMN, MESSAGE_BOARD_START_ROW, color, TB_DEFAULT, BOARDER_TOP_LEFT);
+
+  // TOP-RIGHT Corner
+  tb_printf(MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH, MESSAGE_BOARD_START_ROW, color, TB_DEFAULT, BOARDER_TOP_RIGHT);
+
+  // BOTTOM-LEFT Corner
+  tb_printf(MESSAGE_BOARD_START_COLUMN, MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT, color, TB_DEFAULT, BOARDER_BOTTOM_LEFT);
+
+  // BOTTOM-RIGHT Corner
+  tb_printf(MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH, MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT, color, TB_DEFAULT, BOARDER_BOTTOM_RIGHT);
 }
 
 static void turn_left(struct snake_struct *snake) {
@@ -475,6 +506,12 @@ static void* keyboard_input(void *arg) {
   struct tb_event ev;
   while (!is_finished) {
     tb_poll_event(&ev);
+    if (snake->pause || snake->quit) {
+      reinit_snake(snake);
+
+      continue;
+    }
+
     reinit_snake(snake);
 
     char ch = ev.ch;
