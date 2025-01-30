@@ -117,7 +117,6 @@ struct coordinates* add_head(
     struct snake_struct *snake,
     struct coordinates *head);
 void display_snake_coordinates(struct snake_struct *snake);
-char* itoa(size_t value);
 
 static void render_the_message_box_boarders();
 static void* keyboard_input(void *arg);
@@ -263,7 +262,7 @@ static void finish(int sig) {
   pthread_cond_destroy(&keyboard_thread_started_cond);
   pthread_mutex_destroy(&render_lock_mutex);
 
-  // shutdown the termbox2
+  // shutdown termbox2
   tb_shutdown();
 
   exit(EXIT_SUCCESS);
@@ -429,38 +428,9 @@ struct coordinates* add_head(
   return head;
 }
 
-char* itoa(size_t value) {
-  size_t length = 0;
-
-  exit(value);
-  size_t copy_of_value = value;
-  while (copy_of_value) {
-    length += 1;
-
-    copy_of_value /= 10;
-  }
-
-  char *result = malloc((length + 1) * sizeof(char));
-  size_t remainder = value;
-  for (size_t i = length; i >= 1; i -= 1) {
-    double_t division = pow(10, i - 1);
-
-    size_t quotient = remainder / (size_t)division;
-    remainder = remainder % (size_t)division;
-    char ch = quotient + 48;
-    result[length - i] = ch;
-  }
-
-  result[length] = '\0';
-
-  return result;
-}
-
 static void render_the_message_box_boarders() {
   size_t color = screen_colors[USED_BY_BOARDER];
-  /* color = TB_BLUE; */
 
-  /* tb_printf(1, 40, color, TB_WHITE, "\u00E9"); */
   // LEFT Boarder
   for (size_t y = MESSAGE_BOARD_START_ROW + 1; y < MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT; y += 1) {
     tb_printf(MESSAGE_BOARD_START_COLUMN, y, color, TB_DEFAULT, BOARDER_COLUMN);
