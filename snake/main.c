@@ -90,6 +90,12 @@ struct snake_screen {
   size_t screen_state[SCREEN_SIZE];
 };
 
+struct results_struct {
+  size_t result;
+  size_t minutes;
+  size_t seconds;
+};
+
 static void finish(int sig, struct snake_struct *snake, time_t start_time);
 
 void init_screen(
@@ -101,7 +107,9 @@ void eat_food(struct snake_struct *snake, struct coordinates *food_location);
 bool is_same_coordinates(
     struct coordinates *coord_01,
     struct coordinates *coord_02);
-void render_screen(enum screen_state *screen_states);
+void render_screen(
+    enum screen_state *screen_states,
+    struct results_struct *results);
 bool generate_food(
     enum screen_state *screen_states,
     struct coordinates *food_location);
@@ -131,7 +139,38 @@ pthread_t keyboard_thread_id;
 pthread_cond_t keyboard_thread_started_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t render_lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+struct results_struct read_file(char *path) {
+  size_t result;
+  size_t minutes;
+  size_t seconds;
+
+  FILE *file = fopen(path, "rt");
+  fscanf(
+      file,
+      "Snake size is %zu\n"
+      "The game took %zu minutes and %zu seconds\n",
+      &result,
+      &minutes,
+      &seconds);
+
+  struct results_struct results;
+  results.result = result;
+  results.minutes = minutes;
+  results.seconds = seconds;
+
+  return results;
+}
+
+void show_results(struct results_struct *results) {
+  tb_printf(MESSAGE_BOARD_START_COLUMN + 3, MESSAGE_BOARD_START_ROW + 8, TB_WHITE, TB_DEFAULT, "The snake is %zu",  results->result);
+  tb_printf(MESSAGE_BOARD_START_COLUMN + 3, MESSAGE_BOARD_START_ROW + 9, TB_WHITE, TB_DEFAULT, "Minutes: %zu",  results->minutes);
+  tb_printf(MESSAGE_BOARD_START_COLUMN + 3, MESSAGE_BOARD_START_ROW + 10, TB_WHITE, TB_DEFAULT, "Seconds: %zu",  results->seconds);
+}
+
 int main(int argc, char *argv[]) {
+  struct results_struct previous_results = read_file("./results.txt");
+  printf("Last result was %zu\n", previous_results.result);
+  printf("And it took %zu minutes and %zu seconds\n", previous_results.minutes, previous_results.seconds);
   srandom(time(NULL));
 
   enum screen_state screen_states[SCREEN_SIZE];
@@ -195,16 +234,27 @@ int main(int argc, char *argv[]) {
   }
 
   time_t start_time = time(NULL);
+  struct results_struct results;
   for (;;) {
     usleep(100000);
 
+    time_t end_time = time(NULL);
+
+    time_t game_time = end_time - start_time;
+    time_t game_in_minutes = game_time / 60;
+    time_t game_in_seconds = game_time % 60;
+
+    results.result = snake.list_size;
+    results.minutes = game_in_minutes;
+    results.seconds = game_in_seconds;
+
     init_screen(screen_states, &snake, &food_location);
-    render_screen(screen_states);
+    render_screen(screen_states, &results);
 
     if (snake.pause) {
       tb_printf(MESSAGE_START_COLUMN, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have paused the game");
       tb_printf(MESSAGE_START_COLUMN, SECOND_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "Press any key to continue");
-      render_screen(screen_states);
+      render_screen(screen_states, &results);
 
       // Remove the message
       tb_printf(MESSAGE_START_COLUMN, FIRST_MESSAGE_LINE, TB_DEFAULT, TB_DEFAULT, EMPTY_MESSAGE);
@@ -218,7 +268,7 @@ int main(int argc, char *argv[]) {
     if (!is_game_valid(screen_states, &new_head)) {
       tb_printf(MESSAGE_START_COLUMN, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have lost :(");
       tb_printf(MESSAGE_START_COLUMN, SECOND_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "Press any key to quit");
-      render_screen(screen_states);
+      render_screen(screen_states, &results);
 
       finish(0, &snake, start_time);
     }
@@ -236,7 +286,7 @@ int main(int argc, char *argv[]) {
     if (snake.quit) {
       tb_printf(MESSAGE_START_COLUMN, FIRST_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "You have decided to leave");
       tb_printf(MESSAGE_START_COLUMN, SECOND_MESSAGE_LINE, TB_WHITE, TB_DEFAULT, "Press any key to quit");
-      render_screen(screen_states);
+      render_screen(screen_states, &results);
 
       finish(0, &snake, start_time);
     }
@@ -292,7 +342,9 @@ void init_screen(
   screen_states[index] = USED_BY_FOOD;
 }
 
-void render_screen(enum screen_state *screen_states) {
+void render_screen(
+    enum screen_state *screen_states,
+    struct results_struct *results) {
   for (size_t i = 0; i < SCREEN_SIZE; i += 1) {
     struct coordinates coords = index_to_coorindates(i);
 
@@ -303,6 +355,7 @@ void render_screen(enum screen_state *screen_states) {
   }
 
   render_the_message_box_boarders();
+  show_results(results);
 
   tb_present();
 }
