@@ -1,11 +1,5 @@
 #include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <time.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <pthread.h>
-#include <errno.h>
 
 #define TB_IMPL
 #include "./termbox2.h"
