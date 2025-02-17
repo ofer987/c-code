@@ -1,3 +1,4 @@
+#include <locale.h>
 #include <stdbool.h>
 #include <pthread.h>
 
@@ -27,12 +28,12 @@ struct thread_info {
 #define MESSAGE_BOARD_WIDTH         30
 #define MESSAGE_BOARD_HEIGHT        11
 
-#define BOARDER_ROW                 "-"
-#define BOARDER_COLUMN              "|"
-#define BOARDER_TOP_LEFT            "/"
-#define BOARDER_TOP_RIGHT           "\\"
-#define BOARDER_BOTTOM_LEFT         "\\"
-#define BOARDER_BOTTOM_RIGHT        "/"
+#define BOARDER_ROW                 "━"
+#define BOARDER_COLUMN              "┃"
+#define BOARDER_TOP_LEFT            "┏"
+#define BOARDER_TOP_RIGHT           "┓"
+#define BOARDER_BOTTOM_LEFT         "┗"
+#define BOARDER_BOTTOM_RIGHT        "┛"
 
 #define EMPTY_MESSAGE \
   "                                                                                "
@@ -162,6 +163,7 @@ void show_results(struct results_struct *results) {
 }
 
 int main(int argc, char *argv[]) {
+  setlocale(LC_ALL, "");
   struct results_struct previous_results = read_file("./results.txt");
   printf("Last result was %zu\n", previous_results.result);
   printf("And it took %zu minutes and %zu seconds\n", previous_results.minutes, previous_results.seconds);
