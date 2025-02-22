@@ -188,15 +188,19 @@ pthread_t keyboard_thread_id;
 pthread_cond_t keyboard_thread_started_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t render_lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-struct results_struct read_file(char *path) {
+void print_results(char *path) {
   size_t result;
   size_t minutes;
   size_t seconds;
 
   FILE *file = fopen(path, "rt");
+  if (file == NULL) {
+    return;
+  }
+
   fscanf(
       file,
-      "Snake size is %zu\n"
+      "Snake size was %zu\n"
       "The game took %zu minutes and %zu seconds\n",
       &result,
       &minutes,
@@ -207,11 +211,12 @@ struct results_struct read_file(char *path) {
   results.minutes = minutes;
   results.seconds = seconds;
 
-  return results;
+  printf("Last result was %zu\n", results.result);
+  printf("And it took %zu minutes and %zu seconds\n", results.minutes, results.seconds);
 }
 
 void show_results(struct results_struct *results) {
-  tb_printf(MESSAGE_BOARD_START_COLUMN + 3, MESSAGE_BOARD_START_ROW + 8, TB_WHITE, TB_DEFAULT, "The snake is %zu",  results->result);
+  tb_printf(MESSAGE_BOARD_START_COLUMN + 3, MESSAGE_BOARD_START_ROW + 8, TB_WHITE, TB_DEFAULT, "The snake was %zu",  results->result);
   tb_printf(MESSAGE_BOARD_START_COLUMN + 3, MESSAGE_BOARD_START_ROW + 9, TB_WHITE, TB_DEFAULT, "Minutes: %zu",  results->minutes);
   tb_printf(MESSAGE_BOARD_START_COLUMN + 3, MESSAGE_BOARD_START_ROW + 10, TB_WHITE, TB_DEFAULT, "Seconds: %zu",  results->seconds);
 }
@@ -270,9 +275,8 @@ void draw_left_border(enum screen_state *screen_states) {
 
 int main(int argc, char *argv[]) {
   setlocale(LC_ALL, "");
-  struct results_struct previous_results = read_file("./results.txt");
-  printf("Last result was %zu\n", previous_results.result);
-  printf("And it took %zu minutes and %zu seconds\n", previous_results.minutes, previous_results.seconds);
+  print_results("./results.txt");
+
   srandom(time(NULL));
 
   enum screen_state screen_states[SCREEN_SIZE];
@@ -413,7 +417,7 @@ static void finish(int sig, struct snake_struct *snake, time_t start_time) {
 
   FILE *results = fopen("./results.txt", "wt");
 
-  fprintf(results, "Snake size is %zu\n", snake->list_size);
+  fprintf(results, "Snake size was %zu\n", snake->list_size);
   fprintf(results, "The game took %zu minutes and %zu seconds\n", game_in_minutes, game_in_seconds);
 
   // terminate the keyboard_input thread
