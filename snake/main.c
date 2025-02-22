@@ -19,7 +19,15 @@ struct thread_info {
   struct snake_struct *snake;
 };
 
-#define SIDE_SIZE 30
+#define BORDER_HORIZONTAL_SIZE 30
+#define BORDER_VERTICAL_SIZE 30
+
+#define SIDE_VERTICAL_START 1
+#define SIDE_VERTICAL_END 29
+
+#define SIDE_HORIZONTAL_START 1
+#define SIDE_HORIZONTAL_END 29
+
 #define SCREEN_SIZE 900
 
 #define MESSAGE_BOARD_START_COLUMN  0
@@ -28,12 +36,12 @@ struct thread_info {
 #define MESSAGE_BOARD_WIDTH         30
 #define MESSAGE_BOARD_HEIGHT        11
 
-#define BOARDER_ROW                 "━"
-#define BOARDER_COLUMN              "┃"
-#define BOARDER_TOP_LEFT            "┏"
-#define BOARDER_TOP_RIGHT           "┓"
-#define BOARDER_BOTTOM_LEFT         "┗"
-#define BOARDER_BOTTOM_RIGHT        "┛"
+#define BORDER_ROW                 "━"
+#define BORDER_COLUMN              "┃"
+#define BORDER_TOP_LEFT            "┏"
+#define BORDER_TOP_RIGHT           "┓"
+#define BORDER_BOTTOM_LEFT         "┗"
+#define BORDER_BOTTOM_RIGHT        "┛"
 
 #define EMPTY_MESSAGE \
   "                                                                                "
@@ -46,17 +54,63 @@ enum screen_state {
   USED_BY_SNAKE_TAIL,
   USED_BY_SNAKE_HEAD,
   USED_BY_FOOD,
-  USED_BY_BOARDER,
+  USED_BY_TOP_BORDER,
+  USED_BY_TOP_RIGHT_BORDER,
+  USED_BY_RIGHT_BORDER,
+  USED_BY_BOTTOM_RIGHT_BORDER,
+  USED_BY_BOTTOM_BORDER,
+  USED_BY_BOTTOM_LEFT_BORDER,
+  USED_BY_LEFT_BORDER,
+  USED_BY_TOP_LEFT_BORDER,
   USED_BY_MESSAGE,
   TOTAL
 };
 
+char* screen_chars[TOTAL] = {
+  [AVAILABLE] = " ",
+  [USED_BY_SNAKE_TAIL] = "#",
+  [USED_BY_SNAKE_HEAD] = "@",
+  [USED_BY_FOOD] = "$",
+  [USED_BY_TOP_BORDER] = BORDER_ROW,
+  [USED_BY_TOP_RIGHT_BORDER] = BORDER_TOP_RIGHT,
+  [USED_BY_RIGHT_BORDER] = BORDER_COLUMN,
+  [USED_BY_BOTTOM_RIGHT_BORDER] = BORDER_BOTTOM_RIGHT,
+  [USED_BY_BOTTOM_BORDER] = BORDER_ROW,
+  [USED_BY_BOTTOM_LEFT_BORDER] = BORDER_BOTTOM_LEFT,
+  [USED_BY_LEFT_BORDER] = BORDER_COLUMN,
+  [USED_BY_TOP_LEFT_BORDER] = BORDER_TOP_LEFT,
+  [USED_BY_MESSAGE] = " "
+};
+
+size_t screen_background_colors[TOTAL] = {
+  [AVAILABLE] = TB_DEFAULT,
+  [USED_BY_SNAKE_TAIL] = TB_BLACK,
+  [USED_BY_SNAKE_HEAD] = TB_BLACK,
+  [USED_BY_FOOD] = TB_BLACK,
+  [USED_BY_TOP_BORDER] = TB_BLUE,
+  [USED_BY_TOP_RIGHT_BORDER] = TB_BLUE,
+  [USED_BY_RIGHT_BORDER] = TB_BLUE,
+  [USED_BY_BOTTOM_RIGHT_BORDER] = TB_BLUE,
+  [USED_BY_BOTTOM_BORDER] = TB_BLUE,
+  [USED_BY_BOTTOM_LEFT_BORDER] = TB_BLUE,
+  [USED_BY_LEFT_BORDER] = TB_BLUE,
+  [USED_BY_TOP_LEFT_BORDER] = TB_BLUE,
+  [USED_BY_MESSAGE] = TB_BLACK
+};
+
 size_t screen_colors[TOTAL] = {
   [AVAILABLE] = TB_WHITE,
-  [USED_BY_SNAKE_TAIL] = TB_GREEN,
-  [USED_BY_SNAKE_HEAD] = TB_RED,
-  [USED_BY_FOOD] = TB_BLUE,
-  [USED_BY_BOARDER] = 9,
+  [USED_BY_SNAKE_TAIL] = TB_BLUE,
+  [USED_BY_SNAKE_HEAD] = TB_MAGENTA,
+  [USED_BY_FOOD] = TB_GREEN,
+  [USED_BY_TOP_BORDER] = TB_WHITE,
+  [USED_BY_TOP_RIGHT_BORDER] = TB_WHITE,
+  [USED_BY_RIGHT_BORDER] = TB_WHITE,
+  [USED_BY_BOTTOM_RIGHT_BORDER] = TB_WHITE,
+  [USED_BY_BOTTOM_BORDER] = TB_WHITE,
+  [USED_BY_BOTTOM_LEFT_BORDER] = TB_WHITE,
+  [USED_BY_LEFT_BORDER] = TB_WHITE,
+  [USED_BY_TOP_LEFT_BORDER] = TB_WHITE,
   [USED_BY_MESSAGE] = TB_WHITE
 };
 
@@ -105,7 +159,7 @@ bool is_same_coordinates(
 void render_screen(
     enum screen_state *screen_states,
     struct results_struct *results);
-bool generate_food(
+void generate_food(
     enum screen_state *screen_states,
     struct coordinates *food_location);
 struct coordinates new_head_coordinates(struct snake_struct *snake);
@@ -162,6 +216,58 @@ void show_results(struct results_struct *results) {
   tb_printf(MESSAGE_BOARD_START_COLUMN + 3, MESSAGE_BOARD_START_ROW + 10, TB_WHITE, TB_DEFAULT, "Seconds: %zu",  results->seconds);
 }
 
+void draw_top_border(enum screen_state *screen_states) {
+  size_t x = 0;
+  size_t y = 0;
+  size_t i = coordinates_to_index(x, y);
+  screen_states[i] = USED_BY_TOP_LEFT_BORDER;
+
+  for (size_t x = 1; x < BORDER_HORIZONTAL_SIZE; x += 1) {
+    size_t i = coordinates_to_index(x, y);
+
+    screen_states[i] = USED_BY_TOP_BORDER;
+  }
+}
+
+void draw_right_border(enum screen_state *screen_states) {
+  size_t x = BORDER_HORIZONTAL_SIZE - 1;
+  size_t y = 0;
+  size_t i = coordinates_to_index(x, y);
+  screen_states[i] = USED_BY_TOP_RIGHT_BORDER;
+
+  for (size_t y = 1; y < BORDER_HORIZONTAL_SIZE - 1; y += 1) {
+    size_t i = coordinates_to_index(x, y);
+
+    screen_states[i] = USED_BY_RIGHT_BORDER;
+  }
+}
+
+void draw_bottom_border(enum screen_state *screen_states) {
+  size_t x = BORDER_HORIZONTAL_SIZE - 1;
+  size_t y = BORDER_VERTICAL_SIZE - 1;
+  size_t i = coordinates_to_index(x, y);
+  screen_states[i] = USED_BY_BOTTOM_RIGHT_BORDER;
+
+  for (size_t x = 0; x < BORDER_HORIZONTAL_SIZE - 1; x += 1) {
+    size_t i = coordinates_to_index(x, y);
+
+    screen_states[i] = USED_BY_BOTTOM_BORDER;
+  }
+}
+
+void draw_left_border(enum screen_state *screen_states) {
+  size_t x = 0;
+  size_t y = BORDER_VERTICAL_SIZE - 1;
+  size_t i = coordinates_to_index(x, y);
+  screen_states[i] = USED_BY_BOTTOM_LEFT_BORDER;
+
+  for (size_t y = 1; y < BORDER_VERTICAL_SIZE - 1; y += 1) {
+    size_t i = coordinates_to_index(x, y);
+
+    screen_states[i] = USED_BY_LEFT_BORDER;
+  }
+}
+
 int main(int argc, char *argv[]) {
   setlocale(LC_ALL, "");
   struct results_struct previous_results = read_file("./results.txt");
@@ -172,8 +278,8 @@ int main(int argc, char *argv[]) {
   enum screen_state screen_states[SCREEN_SIZE];
 
   struct coordinates head = {
-    .y = SIDE_SIZE / 2,
-    .x = SIDE_SIZE / 2,
+    .y = BORDER_HORIZONTAL_SIZE / 2,
+    .x = BORDER_HORIZONTAL_SIZE / 2,
   };
   struct snake_struct snake = {
     .head = &head,
@@ -183,15 +289,21 @@ int main(int argc, char *argv[]) {
   };
 
   // Reset the screen
-  for (size_t i = 0; i < SCREEN_SIZE; i += 1) {
-    if (coordinates_to_index(snake.head->x, snake.head->y) == i) {
-      screen_states[i] = USED_BY_SNAKE_HEAD;
+  draw_top_border(screen_states);
+  draw_right_border(screen_states);
+  draw_bottom_border(screen_states);
+  draw_left_border(screen_states);
 
-      continue;
+  for (size_t x = SIDE_HORIZONTAL_START; x < SIDE_HORIZONTAL_END; x += 1) {
+    for (size_t y = SIDE_VERTICAL_START; y < SIDE_VERTICAL_END; y += 1) {
+      size_t i = coordinates_to_index(x, y);
+
+      screen_states[i] = AVAILABLE;
     }
-
-    screen_states[i] = AVAILABLE;
   }
+  size_t i = coordinates_to_index(snake.head->x, snake.head->y);
+  screen_states[i] = USED_BY_SNAKE_HEAD;
+
   struct coordinates food_location;
   generate_food(screen_states, &food_location);
 
@@ -320,8 +432,17 @@ void init_screen(
     struct snake_struct *snake,
     struct coordinates *food_location) {
 
-  for (size_t i = 0; i < SCREEN_SIZE; i += 1) {
-    screen_states[i] = AVAILABLE;
+  draw_top_border(screen_states);
+  draw_right_border(screen_states);
+  draw_bottom_border(screen_states);
+  draw_left_border(screen_states);
+
+  for (size_t x = SIDE_HORIZONTAL_START; x < SIDE_HORIZONTAL_END; x += 1) {
+    for (size_t y = SIDE_VERTICAL_START; y < SIDE_VERTICAL_END; y += 1) {
+      size_t i = coordinates_to_index(x, y);
+
+      screen_states[i] = AVAILABLE;
+    }
   }
 
   struct coordinates *snake_location = snake->head;
@@ -345,9 +466,11 @@ void render_screen(
     struct coordinates coords = index_to_coorindates(i);
 
     size_t state = screen_states[i];
+    int32_t bg_color = screen_background_colors[state];
     int32_t color = screen_colors[state];
+    char* ch = screen_chars[state];
 
-    tb_printf(coords.x, coords.y, color, color, " ");
+    tb_printf(coords.x, coords.y, color, bg_color, ch);
   }
 
   render_the_message_box_boarders();
@@ -356,7 +479,7 @@ void render_screen(
   tb_present();
 }
 
-bool generate_food(
+void generate_food(
     enum screen_state *screen_states,
     struct coordinates *food_location) {
   size_t available_tiles = 0;
@@ -367,14 +490,19 @@ bool generate_food(
     }
   }
 
-  size_t random_number = random() / (RAND_MAX / available_tiles);
-  struct coordinates result = index_to_coorindates(random_number);
-  food_location->y = result.y;
-  food_location->x = result.x;
+  while (true) {
+    size_t random_number = random() / (RAND_MAX / available_tiles);
 
-  available_tiles = 0;
+    if (screen_states[random_number] != AVAILABLE) {
+      continue;
+    }
 
-  return true;
+    struct coordinates result = index_to_coorindates(random_number);
+    food_location->y = result.y;
+    food_location->x = result.x;
+
+    return;
+  }
 }
 
 struct coordinates new_head_coordinates(struct snake_struct *snake) {
@@ -419,11 +547,11 @@ void move_snake(struct coordinates *new_head, struct snake_struct *snake) {
 bool is_game_valid(
     enum screen_state *screen_states,
     struct coordinates *snake_head) {
-  if (snake_head->y < 0 || snake_head->y >= SIDE_SIZE) {
+  if (snake_head->y < 0 || snake_head->y >= BORDER_HORIZONTAL_SIZE) {
     return false;
   }
 
-  if (snake_head->x < 0 || snake_head->x >= SIDE_SIZE) {
+  if (snake_head->x < 0 || snake_head->x >= BORDER_HORIZONTAL_SIZE) {
     return false;
   }
 
@@ -431,24 +559,33 @@ bool is_game_valid(
       snake_head->x,
       snake_head->y);
   enum screen_state snake_location = screen_states[snake_head_location];
-  if (snake_location == USED_BY_SNAKE_TAIL) {
-    return false;
+  switch (snake_location) {
+    case USED_BY_SNAKE_TAIL: /* FALLTHROUGH */
+    case USED_BY_TOP_BORDER: /* FALLTHROUGH */
+    case USED_BY_TOP_RIGHT_BORDER: /* FALLTHROUGH */
+    case USED_BY_RIGHT_BORDER: /* FALLTHROUGH */
+    case USED_BY_BOTTOM_RIGHT_BORDER: /* FALLTHROUGH */
+    case USED_BY_BOTTOM_BORDER: /* FALLTHROUGH */
+    case USED_BY_BOTTOM_LEFT_BORDER: /* FALLTHROUGH */
+    case USED_BY_LEFT_BORDER: /* FALLTHROUGH */
+    case USED_BY_TOP_LEFT_BORDER: /* FALLTHROUGH */
+      return false;
+    default:
+      return true;
   }
-
-  return true;
 }
 
 struct coordinates index_to_coorindates(size_t index) {
   struct coordinates foobar = {
-    .x = index % SIDE_SIZE,
-    .y = index / SIDE_SIZE
+    .x = index % BORDER_HORIZONTAL_SIZE,
+    .y = index / BORDER_HORIZONTAL_SIZE
   };
 
   return foobar;
 }
 
 size_t coordinates_to_index(size_t x, size_t y) {
-  return SIDE_SIZE * y + x;
+  return BORDER_HORIZONTAL_SIZE * y + x;
 }
 
 void eat_food(struct snake_struct *snake, struct coordinates *food_location) {
@@ -479,39 +616,39 @@ struct coordinates* add_head(
 }
 
 static void render_the_message_box_boarders() {
-  size_t color = screen_colors[USED_BY_BOARDER];
+  size_t color = screen_colors[USED_BY_TOP_BORDER];
 
   // LEFT Boarder
   for (size_t y = MESSAGE_BOARD_START_ROW + 1; y < MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT; y += 1) {
-    tb_printf(MESSAGE_BOARD_START_COLUMN, y, color, TB_DEFAULT, BOARDER_COLUMN);
+    tb_printf(MESSAGE_BOARD_START_COLUMN, y, color, TB_DEFAULT, BORDER_COLUMN);
   }
 
   // TOP Boarder
   for (size_t x = MESSAGE_BOARD_START_COLUMN + 1; x < MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH; x += 1) {
-    tb_printf(x, MESSAGE_BOARD_START_ROW, color, TB_DEFAULT, BOARDER_ROW);
+    tb_printf(x, MESSAGE_BOARD_START_ROW, color, TB_DEFAULT, BORDER_ROW);
   }
 
   // RIGHT Boarder
   for (size_t y = MESSAGE_BOARD_START_ROW + 1; y < MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT; y += 1) {
-    tb_printf(MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH, y, color, TB_DEFAULT, BOARDER_COLUMN);
+    tb_printf(MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH, y, color, TB_DEFAULT, BORDER_COLUMN);
   }
 
   // BOTTOM Boarder
   for (size_t x = MESSAGE_BOARD_START_COLUMN + 1; x < MESSAGE_BOARD_WIDTH; x += 1) {
-    tb_printf(x, MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT, color, TB_DEFAULT, BOARDER_ROW);
+    tb_printf(x, MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT, color, TB_DEFAULT, BORDER_ROW);
   }
 
   // TOP-LEFT Corner
-  tb_printf(MESSAGE_BOARD_START_COLUMN, MESSAGE_BOARD_START_ROW, color, TB_DEFAULT, BOARDER_TOP_LEFT);
+  tb_printf(MESSAGE_BOARD_START_COLUMN, MESSAGE_BOARD_START_ROW, color, TB_DEFAULT, BORDER_TOP_LEFT);
 
   // TOP-RIGHT Corner
-  tb_printf(MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH, MESSAGE_BOARD_START_ROW, color, TB_DEFAULT, BOARDER_TOP_RIGHT);
+  tb_printf(MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH, MESSAGE_BOARD_START_ROW, color, TB_DEFAULT, BORDER_TOP_RIGHT);
 
   // BOTTOM-LEFT Corner
-  tb_printf(MESSAGE_BOARD_START_COLUMN, MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT, color, TB_DEFAULT, BOARDER_BOTTOM_LEFT);
+  tb_printf(MESSAGE_BOARD_START_COLUMN, MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT, color, TB_DEFAULT, BORDER_BOTTOM_LEFT);
 
   // BOTTOM-RIGHT Corner
-  tb_printf(MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH, MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT, color, TB_DEFAULT, BOARDER_BOTTOM_RIGHT);
+  tb_printf(MESSAGE_BOARD_START_COLUMN + MESSAGE_BOARD_WIDTH, MESSAGE_BOARD_START_ROW + MESSAGE_BOARD_HEIGHT, color, TB_DEFAULT, BORDER_BOTTOM_RIGHT);
 }
 
 static void turn_left(struct snake_struct *snake) {
