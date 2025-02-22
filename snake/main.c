@@ -51,12 +51,21 @@ enum screen_state {
   TOTAL
 };
 
+char* screen_chars[TOTAL] = {
+  [AVAILABLE] = " ",
+  [USED_BY_SNAKE_TAIL] = "#",
+  [USED_BY_SNAKE_HEAD] = "@",
+  [USED_BY_FOOD] = "$",
+  [USED_BY_BOARDER] = " ",
+  [USED_BY_MESSAGE] = " "
+};
+
 size_t screen_colors[TOTAL] = {
   [AVAILABLE] = TB_WHITE,
-  [USED_BY_SNAKE_TAIL] = TB_GREEN,
-  [USED_BY_SNAKE_HEAD] = TB_RED,
-  [USED_BY_FOOD] = TB_BLUE,
-  [USED_BY_BOARDER] = 9,
+  [USED_BY_SNAKE_TAIL] = TB_BLUE,
+  [USED_BY_SNAKE_HEAD] = TB_MAGENTA,
+  [USED_BY_FOOD] = TB_GREEN,
+  [USED_BY_BOARDER] = TB_WHITE,
   [USED_BY_MESSAGE] = TB_WHITE
 };
 
@@ -346,8 +355,9 @@ void render_screen(
 
     size_t state = screen_states[i];
     int32_t color = screen_colors[state];
+    char* ch = screen_chars[state];
 
-    tb_printf(coords.x, coords.y, color, color, " ");
+    tb_printf(coords.x, coords.y, color, TB_DEFAULT, ch);
   }
 
   render_the_message_box_boarders();
