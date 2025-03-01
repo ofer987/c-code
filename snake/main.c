@@ -20,15 +20,15 @@ struct thread_info {
 };
 
 #define BORDER_HORIZONTAL_SIZE 30
-#define BORDER_VERTICAL_SIZE 30
+#define BORDER_VERTICAL_SIZE 20
 
 #define SIDE_VERTICAL_START 1
-#define SIDE_VERTICAL_END 29
+#define SIDE_VERTICAL_END 19
 
 #define SIDE_HORIZONTAL_START 1
 #define SIDE_HORIZONTAL_END 29
 
-#define SCREEN_SIZE 900
+#define SCREEN_SIZE 600
 
 #define MESSAGE_BOARD_START_COLUMN  0
 #define MESSAGE_BOARD_START_ROW     32
@@ -241,7 +241,7 @@ void draw_right_border(enum screen_state *screen_states) {
   size_t i = coordinates_to_index(x, y);
   screen_states[i] = USED_BY_TOP_RIGHT_BORDER;
 
-  for (size_t y = 1; y < BORDER_HORIZONTAL_SIZE - 1; y += 1) {
+  for (size_t y = 1; y < BORDER_VERTICAL_SIZE - 1; y += 1) {
     size_t i = coordinates_to_index(x, y);
 
     screen_states[i] = USED_BY_RIGHT_BORDER;
@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
 
   struct coordinates head = {
     .state = USED_BY_SNAKE_HEAD,
-    .y = BORDER_HORIZONTAL_SIZE / 2,
+    .y = BORDER_VERTICAL_SIZE / 2,
     .x = BORDER_HORIZONTAL_SIZE / 2,
   };
   struct snake_struct snake = {
@@ -554,7 +554,7 @@ void move_snake(struct coordinates *new_head, struct snake_struct *snake) {
 bool is_game_valid(
     enum screen_state *screen_states,
     struct coordinates *snake_head) {
-  if (snake_head->y < 0 || snake_head->y >= BORDER_HORIZONTAL_SIZE) {
+  if (snake_head->y < 0 || snake_head->y >= BORDER_VERTICAL_SIZE) {
     return false;
   }
 
@@ -583,9 +583,12 @@ bool is_game_valid(
 }
 
 struct coordinates index_to_coorindates(size_t index) {
+  size_t y = index / BORDER_HORIZONTAL_SIZE;
+  size_t x = index - (BORDER_HORIZONTAL_SIZE * y);
+
   struct coordinates foobar = {
-    .x = index % BORDER_HORIZONTAL_SIZE,
-    .y = index / BORDER_HORIZONTAL_SIZE
+    .x = x,
+    .y = y
   };
 
   return foobar;
