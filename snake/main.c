@@ -117,6 +117,7 @@ size_t screen_colors[TOTAL] = {
 enum snake_movement { LEFT = 0, UP, RIGHT, DOWN };
 
 struct coordinates {
+  enum screen_state state;
   size_t x;
   size_t y;
 
@@ -282,6 +283,7 @@ int main(int argc, char *argv[]) {
   enum screen_state screen_states[SCREEN_SIZE];
 
   struct coordinates head = {
+    .state = USED_BY_SNAKE_HEAD,
     .y = BORDER_HORIZONTAL_SIZE / 2,
     .x = BORDER_HORIZONTAL_SIZE / 2,
   };
@@ -308,7 +310,7 @@ int main(int argc, char *argv[]) {
   size_t i = coordinates_to_index(snake.head->x, snake.head->y);
   screen_states[i] = USED_BY_SNAKE_HEAD;
 
-  struct coordinates food_location;
+  struct coordinates food_location = { .state = USED_BY_FOOD };
   generate_food(screen_states, &food_location);
 
   /* initialize the termbox library */
@@ -450,11 +452,9 @@ void init_screen(
   }
 
   struct coordinates *snake_location = snake->head;
-  size_t snake_colour = USED_BY_SNAKE_HEAD;
   while (snake_location != NULL) {
     size_t index = coordinates_to_index(snake_location->x, snake_location->y);
-    screen_states[index] = snake_colour;
-    snake_colour = USED_BY_SNAKE_TAIL;
+    screen_states[index] = snake_location->state;
 
     snake_location = snake_location->next;
   }
@@ -502,6 +502,7 @@ void generate_food(
     }
 
     struct coordinates result = index_to_coorindates(random_number);
+    food_location->state = USED_BY_FOOD;
     food_location->y = result.y;
     food_location->x = result.x;
 
@@ -510,7 +511,9 @@ void generate_food(
 }
 
 struct coordinates new_head_coordinates(struct snake_struct *snake) {
-  struct coordinates new_head;
+  struct coordinates new_head = {
+    .state = USED_BY_SNAKE_HEAD
+  };
 
   if (snake->current_movement == LEFT) {
     new_head.y = snake->head->y;
@@ -594,6 +597,7 @@ size_t coordinates_to_index(size_t x, size_t y) {
 
 void eat_food(struct snake_struct *snake, struct coordinates *food_location) {
   struct coordinates *new_head = malloc(sizeof(struct coordinates));
+  new_head->state = USED_BY_SNAKE_HEAD;
   new_head->y = food_location->y;
   new_head->x = food_location->x;
   new_head->next = NULL;
@@ -612,6 +616,8 @@ struct coordinates* add_head(
     struct coordinates *head) {
   struct coordinates *temp = snake->head;
   snake->head = head;
+
+  temp->state = USED_BY_SNAKE_TAIL;
   head->next = temp;
 
   snake->list_size += 1;
