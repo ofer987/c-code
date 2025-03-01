@@ -350,7 +350,18 @@ int main(int argc, char *argv[]) {
   time_t start_time = time(NULL);
   struct results_struct results;
   for (;;) {
-    usleep(100000);
+    switch (snake.current_movement) {
+      case UP:
+        // FALLTHROUGH
+      case DOWN:
+        usleep(115000);
+        break;
+      case LEFT:
+        // FALLTHROUGH
+      case RIGHT:
+        usleep(100000);
+        break;
+    }
 
     time_t end_time = time(NULL);
 
