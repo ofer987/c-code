@@ -1,0 +1,18 @@
+name: Validate Pull Requests
+
+on:
+  pull_request:
+
+concurrency:
+  group: pull-requests
+  cancel-in-progress: false
+
+jobs:
+  linters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clang-Format
+        run: |
+          clang-format $(find ./snake -type f -iname '*.c') --dry-run -Werror --style=file:.clang-format-18
