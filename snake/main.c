@@ -338,6 +338,9 @@ main(int argc, char* argv[]) {
     handle_error_en(s, "pthread_attr_destroy");
   }
 
+  pthread_mutex_lock(&render_lock_mutex);
+  pthread_cond_wait(&keyboard_thread_started_cond, &render_lock_mutex);
+
   time_t start_time = time(NULL);
   struct results_struct results;
   for (;;) {
